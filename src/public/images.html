@@ -1,875 +1,413 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Docker镜像流式下载工具、即点即下无需等待">
-    <meta name="keywords" content="Docker镜像下载、流式下载、即时下载">
-    <meta name="color-scheme" content="dark light">
-    <title>Docker离线镜像下载</title>
+    <meta name="description" content="HubProxy - Docker 离线镜像流式下载工具">
+    <title>离线镜像下载 - 镜像加速</title>
     <link rel="icon" href="/favicon.ico">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            400: '#38bdf8',
+                            500: '#0ea5e9', // Sky-500
+                            600: '#0284c7',
+                        },
+                        accent: {
+                            400: '#34d399',
+                            500: '#10b981', // Emerald-500
+                            600: '#059669',
+                        }
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.5s ease-out forwards',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0', transform: 'translateY(10px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
     <style>
-        :root {
-            --background: #ffffff;
-            --foreground: #0f172a;
-            --card: #ffffff;
-            --card-foreground: #0f172a;
-            --primary: #2563eb;
-            --primary-foreground: #f8fafc;
-            --secondary: #f1f5f9;
-            --secondary-foreground: #0f172a;
-            --muted: #f1f5f9;
-            --muted-foreground: #64748b;
-            --accent: #f1f5f9;
-            --accent-foreground: #0f172a;
-            --border: #e2e8f0;
-            --input: #ffffff;
-            --ring: #2563eb;
-            --radius: 0.5rem;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --error: #ef4444;
+        body { font-family: 'Inter', sans-serif; }
+        .glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
         }
-
-        .dark {
-            --background: #0f172a;
-            --foreground: #f8fafc;
-            --card: #1e293b;
-            --card-foreground: #f8fafc;
-            --primary: #3b82f6;
-            --primary-foreground: #f8fafc;
-            --secondary: #1e293b;
-            --secondary-foreground: #f8fafc;
-            --muted: #1e293b;
-            --muted-foreground: #94a3b8;
-            --accent: #1e293b;
-            --accent-foreground: #f8fafc;
-            --border: #334155;
-            --input: #1e293b;
-            --ring: #3b82f6;
+        .dark .glass {
+            background: rgba(30, 41, 59, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
-
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --background: #0f172a;
-                --foreground: #f8fafc;
-                --card: #1e293b;
-                --card-foreground: #f8fafc;
-                --primary: #3b82f6;
-                --primary-foreground: #f8fafc;
-                --secondary: #1e293b;
-                --secondary-foreground: #f8fafc;
-                --muted: #1e293b;
-                --muted-foreground: #94a3b8;
-                --accent: #1e293b;
-                --accent-foreground: #f8fafc;
-                --border: #334155;
-                --input: #1e293b;
-                --ring: #3b82f6;
-            }
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-            background-color: var(--background);
-            color: var(--foreground);
-            line-height: 1.5;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            transition: background-color 0.3s, color 0.3s;
-        }
-
-        /* 导航栏 */
-        .navbar {
-            position: sticky;
-            top: 0;
-            z-index: 50;
-            width: 100%;
-            border-bottom: 1px solid var(--border);
-            background-color: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(8px);
-            padding: 0;
-        }
-
-        .dark .navbar {
-            background-color: rgba(15, 23, 42, 0.95);
-        }
-
-        .navbar-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 1rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            height: 4rem;
-        }
-
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            text-decoration: none;
-            color: var(--foreground);
-            font-weight: 600;
-            font-size: 1.125rem;
-        }
-
-        .logo-icon {
-            width: 2rem;
-            height: 2rem;
-            border-radius: 0.5rem;
-            background: linear-gradient(135deg, var(--primary), #3b82f6);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-        }
-
-        .nav-links {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .nav-link {
-            padding: 0.5rem 1rem;
-            border-radius: var(--radius);
-            text-decoration: none;
-            color: var(--muted-foreground);
-            transition: all 0.2s;
-            font-weight: 500;
-        }
-
-        .nav-link:hover,
-        .nav-link.active {
-            color: var(--foreground);
-            background-color: var(--muted);
-        }
-
-        .theme-toggle {
-            padding: 0.5rem;
-            border: none;
-            border-radius: var(--radius);
-            background-color: transparent;
-            color: var(--muted-foreground);
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .theme-toggle:hover {
-            background-color: var(--muted);
-            color: var(--foreground);
-        }
-
-        /* 主要内容 */
-        .main {
-            flex: 1;
-            padding: 2rem 1rem;
-        }
-
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-        }
-
-        .header {
-            text-align: center;
-            margin-bottom: 3rem;
-        }
-
-        .title {
-            font-size: 2.5rem;
-            font-weight: 700;
-            margin-bottom: 1rem;
-            background: linear-gradient(135deg, var(--primary), #3b82f6);
+        .gradient-text {
+            background: linear-gradient(135deg, #0ea5e9 0%, #10b981 100%);
             -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
             background-clip: text;
-        }
-
-        .subtitle {
-            font-size: 1.125rem;
-            color: var(--muted-foreground);
-            margin-bottom: 2rem;
-        }
-
-        .features {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 1rem;
-            margin-top: 2rem;
-        }
-
-        .feature {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 1rem;
-            background-color: var(--card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            font-weight: 500;
-        }
-
-        .feature-icon {
-            font-size: 1.25rem;
-        }
-
-        /* 下载区域 */
-        .download-section,
-        .batch-section {
-            background-color: var(--card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            padding: 2rem;
-            margin-bottom: 2rem;
-        }
-
-        .section-title {
-            font-size: 1.5rem;
-            font-weight: 600;
-            margin-bottom: 1.5rem;
-            color: var(--foreground);
-        }
-
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-
-        .form-label {
-            display: block;
-            font-weight: 500;
-            margin-bottom: 0.5rem;
-            color: var(--foreground);
-        }
-
-        .form-input,
-        .form-select,
-        .textarea {
-            width: 100%;
-            padding: 0.75rem;
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            background-color: var(--input);
-            color: var(--foreground);
-            font-size: 1rem;
-            transition: all 0.2s;
-        }
-
-        .form-input:focus,
-        .form-select:focus,
-        .textarea:focus {
-            outline: none;
-            border-color: var(--ring);
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-        }
-
-        .textarea {
-            min-height: 120px;
-            resize: vertical;
-            font-family: monospace;
-        }
-
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-        }
-
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            padding: 0.75rem 1.5rem;
-            border: none;
-            border-radius: var(--radius);
-            font-weight: 500;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: all 0.2s;
-            text-decoration: none;
-        }
-
-        .btn-primary {
-            background-color: var(--primary);
-            color: var(--primary-foreground);
-        }
-
-        .btn-primary:hover:not(:disabled) {
-            background-color: #1d4ed8;
-        }
-
-        .btn-primary:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .btn-full {
-            width: 100%;
-        }
-
-        .status {
-            padding: 1rem;
-            border-radius: var(--radius);
-            margin-bottom: 1rem;
-            font-weight: 500;
-        }
-
-        .status-success {
-            background-color: rgba(16, 185, 129, 0.1);
-            color: var(--success);
-            border: 1px solid rgba(16, 185, 129, 0.2);
-        }
-
-        .status-error {
-            background-color: rgba(239, 68, 68, 0.1);
-            color: var(--error);
-            border: 1px solid rgba(239, 68, 68, 0.2);
-        }
-
-        .status-warning {
-            background-color: rgba(245, 158, 11, 0.1);
-            color: var(--warning);
-            border: 1px solid rgba(245, 158, 11, 0.2);
-        }
-
-        .help-text {
-            font-size: 0.875rem;
-            color: var(--muted-foreground);
-            margin-top: 0.25rem;
-        }
-
-        @media (max-width: 768px) {
-            .navbar-container {
-                padding: 0 0.5rem;
-            }
-            
-            .nav-links {
-                gap: 0.25rem;
-            }
-            
-            .nav-link {
-                padding: 0.5rem;
-                font-size: 0.875rem;
-            }
-            
-            .main {
-                padding: 1rem 0.5rem;
-            }
-            
-            .download-section,
-            .batch-section {
-                padding: 1.5rem;
-            }
-            
-            .form-row {
-                grid-template-columns: 1fr;
-            }
-            
-            .features {
-                grid-template-columns: 1fr;
-            }
-            
-            .title {
-                font-size: 2rem;
-            }
-        }
-
-        .loading {
-            display: inline-block;
-            width: 1rem;
-            height: 1rem;
-            border: 2px solid transparent;
-            border-top: 2px solid currentColor;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* 切换开关样式 */
-        .switch-container {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            margin-bottom: 1.5rem;
-        }
-
-        .switch {
-            position: relative;
-            display: inline-block;
-            width: 50px;
-            height: 24px;
-        }
-
-        .switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-
-        .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: var(--muted);
-            transition: 0.2s;
-            border-radius: 24px;
-            border: 1px solid var(--border);
-        }
-
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 18px;
-            width: 18px;
-            left: 2px;
-            bottom: 2px;
-            background-color: white;
-            transition: 0.2s;
-            border-radius: 50%;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-
-        input:checked + .slider {
-            background-color: var(--primary);
-        }
-
-        input:checked + .slider:before {
-            transform: translateX(26px);
-        }
-
-        .switch-label {
-            font-weight: 500;
-            color: var(--foreground);
-            cursor: pointer;
-        }
-
-        .hidden {
-            display: none;
-        }
-
-        .mobile-menu-toggle {
-            display: none;
-        }
-
-        @media (max-width: 768px) {
-            .navbar-container {
-                padding: 0 0.5rem;
-            }
-            
-            .nav-links {
-                position: fixed;
-                top: 70px;
-                left: 0;
-                right: 0;
-                background: var(--background);
-                border: 1px solid var(--border);
-                border-top: none;
-                border-radius: 0 0 12px 12px;
-                padding: 1rem;
-                flex-direction: column;
-                gap: 0.5rem;
-                z-index: 1000;
-                transform: translateY(-100vh);
-                transition: transform 0.3s ease;
-            }
-            
-            .nav-links.active {
-                transform: translateY(0);
-            }
-            
-            .mobile-menu-toggle {
-                display: block !important;
-                background: none;
-                border: none;
-                color: var(--foreground);
-                font-size: 1.5rem;
-                cursor: pointer;
-                padding: 0.5rem;
-                border-radius: var(--radius);
-                transition: background-color 0.2s;
-            }
-            
-            .mobile-menu-toggle:hover {
-                background-color: var(--muted);
-            }
-            
-            .navbar-container {
-                justify-content: space-between !important;
-            }
-            
-            .main {
-                padding: 1rem 0.5rem;
-            }
-            
-            .download-section,
-            .batch-section {
-                padding: 1.5rem;
-            }
-            
-            .form-row {
-                grid-template-columns: 1fr;
-            }
-            
-            .features {
-                grid-template-columns: 1fr;
-            }
-            
-            .title {
-                font-size: 2rem;
-            }
+            -webkit-text-fill-color: transparent;
         }
     </style>
 </head>
-<body>
-    <nav class="navbar">
-        <div class="navbar-container">
-            <a href="/" class="logo">
-                <div class="logo-icon">
-                    ⚡
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-200 transition-colors duration-300 min-h-screen flex flex-col relative overflow-x-hidden selection:bg-primary-500 selection:text-white">
+
+    <!-- Navbar -->
+    <nav class="fixed top-0 left-0 right-0 z-50 glass border-b border-slate-200/50 dark:border-slate-800 transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo -->
+                <a href="/" class="flex items-center gap-3 group">
+                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center text-white shadow-lg shadow-primary-500/30 transition-transform group-hover:scale-110">
+                        <i class="fa-solid fa-bolt"></i>
+                    </div>
+                    <span class="font-bold text-xl tracking-tight text-slate-800 dark:text-white">镜像加速</span>
+                </a>
+
+                <!-- Desktop Menu -->
+                <div class="hidden md:flex items-center gap-1">
+                    <a href="/" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-primary-600 hover:bg-slate-100/50 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/50 transition-all">
+                        GitHub 加速
+                    </a>
+                    <a href="/images.html" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-primary-600 hover:bg-slate-100/50 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/50 transition-all bg-slate-100/50 dark:bg-slate-800/50 text-primary-600 dark:text-white font-semibold">
+                        离线镜像
+                    </a>
+                    <a href="/search.html" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-primary-600 hover:bg-slate-100/50 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/50 transition-all">
+                        镜像搜索
+                    </a>
+                    <button id="themeToggle" class="ml-2 w-10 h-10 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-orange-500 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-yellow-400 transition-all">
+                        <i class="fa-solid fa-moon text-lg"></i>
+                    </button>
                 </div>
-                加速服务
-            </a>
-            
-            <button class="mobile-menu-toggle" id="mobileMenuToggle">
-                ☰
-            </button>
-            
-            <div class="nav-links" id="navLinks">
-                <a href="/" class="nav-link">🚀 GitHub加速</a>
-                <a href="/images.html" class="nav-link active">🐳 离线镜像下载</a>
-                <a href="/search.html" class="nav-link">🔍 镜像搜索</a>
-                <a href="https://gitee.com/if-the-wind/github-hosts/raw/main/hosts" target="_blank" class="nav-link">📄 Hosts</a>
-                
-                <button class="theme-toggle" id="themeToggle">
-                    🌙
+
+                <!-- Mobile Menu Button -->
+                <button id="mobileMenuBtn" class="md:hidden w-10 h-10 flex items-center justify-center rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">
+                    <i class="fa-solid fa-bars text-xl"></i>
                 </button>
+            </div>
+        </div>
+        
+        <!-- Mobile Menu Dropdown -->
+        <div id="mobileMenu" class="hidden md:hidden glass border-t border-slate-200/50 dark:border-slate-800 absolute w-full left-0">
+            <div class="px-4 pt-2 pb-6 space-y-2">
+                <a href="/" class="block px-4 py-3 rounded-lg text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800/50">GitHub 加速</a>
+                <a href="/images.html" class="block px-4 py-3 rounded-lg bg-primary-50/50 text-primary-600 font-semibold dark:bg-primary-900/20 dark:text-primary-400">离线镜像</a>
+                <a href="/search.html" class="block px-4 py-3 rounded-lg text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800/50">镜像搜索</a>
             </div>
         </div>
     </nav>
 
-    <main class="main">
-        <div class="container">
-            <div class="header">
-                <h1 class="title">Docker离线镜像下载</h1>
-                <p class="subtitle">即点即下，无需等待打包，完全符合docker load加载标准</p>
-                
-                <div class="features">
-                    <div class="feature">
-                        <span class="feature-icon">⚡</span>
-                        <span>即时下载</span>
+    <!-- Main Content -->
+    <main class="flex-grow pt-28 pb-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-4xl mx-auto space-y-8">
+            
+            <div class="text-center space-y-4 animate-fade-in">
+                <h1 class="text-4xl font-extrabold text-slate-900 dark:text-white">
+                    离线镜像 <span class="gradient-text">加速下载</span>
+                </h1>
+                <p class="text-slate-600 dark:text-slate-400">无需等待打包，即点即下的流式传输体验</p>
+            </div>
+
+            <!-- Single Download Card -->
+            <div class="glass rounded-2xl p-8 shadow-xl border border-slate-100 dark:border-slate-800 animate-fade-in" style="animation-delay: 0.1s;">
+                <div class="flex items-center gap-3 mb-6 pb-4 border-b border-slate-200/50 dark:border-slate-700/50">
+                    <span class="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 flex items-center justify-center">
+                        <i class="fa-solid fa-download"></i>
+                    </span>
+                    <h2 class="text-xl font-bold text-slate-800 dark:text-white">单镜像下载</h2>
+                </div>
+
+                <div class="space-y-6">
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div class="space-y-2">
+                            <label class="text-sm font-medium text-slate-700 dark:text-slate-300">镜像名称</label>
+                            <input type="text" id="imageName" placeholder="例如: nginx:alpine" class="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all dark:bg-slate-800/50 dark:border-slate-700 dark:text-white">
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-sm font-medium text-slate-700 dark:text-slate-300">目标架构</label>
+                            <div class="relative">
+                                <select id="platformSelect" class="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all appearance-none dark:bg-slate-800/50 dark:border-slate-700 dark:text-white">
+                                    <option value="">默认 (自动检测)</option>
+                                    <option value="linux/amd64">linux/amd64 (x86_64)</option>
+                                    <option value="linux/arm64">linux/arm64 (Apple Silicon)</option>
+                                    <option value="linux/arm/v7">linux/arm/v7 (Raspberry Pi)</option>
+                                </select>
+                                <div class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                                    <i class="fa-solid fa-chevron-down text-xs"></i>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="feature">
-                        <span class="feature-icon">🔄</span>
-                        <span>流式传输</span>
+
+                    <div class="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-6 bg-slate-200 rounded-full relative cursor-pointer transition-colors dark:bg-slate-700 peer" id="gzipToggleWrapper">
+                                <input type="checkbox" id="gzipDetails" class="sr-only peer">
+                                <div class="w-4 h-4 bg-white rounded-full absolute top-1 left-1 transition-transform peer-checked:translate-x-4"></div>
+                            </div>
+                            <label for="gzipDetails" class="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer select-none">启用 Gzip 压缩</label>
+                        </div>
+                        <span class="text-xs text-slate-400 hidden sm:inline">推荐在网络较慢时开启</span>
                     </div>
-                    <div class="feature">
-                        <span class="feature-icon">💾</span>
-                        <span>无需等待</span>
-                    </div>
-                    <div class="feature">
-                        <span class="feature-icon">🏗️</span>
-                        <span>多架构支持</span>
-                    </div>
+
+                    <div id="statusMessage" class="hidden p-4 rounded-xl text-sm font-medium"></div>
+
+                    <button id="downloadBtn" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 text-white font-bold shadow-lg shadow-primary-500/30 hover:shadow-primary-500/40 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-70 disabled:cursor-not-allowed">
+                        <span id="btnText"><i class="fa-solid fa-cloud-arrow-down mr-2"></i> 立即下载</span>
+                        <span id="btnLoading" class="hidden"><i class="fa-solid fa-circle-notch fa-spin mr-2"></i> 打包中...</span>
+                    </button>
+                    <p class="text-center text-xs text-slate-400">下载后的文件可通过 docker load -i filename.tar 导入</p>
                 </div>
             </div>
 
-            <div class="download-section">
-                <h2 class="section-title">单镜像下载</h2>
-                
-                <div id="singleStatus"></div>
-                
-                <form id="singleForm">
-                    <div class="form-group">
-                        <label class="form-label" for="imageInput">镜像名称</label>
-                        <input 
-                            type="text" 
-                            id="imageInput" 
-                            class="form-input" 
-                            placeholder="例如: nginx:alpine"
-                        >
+            <!-- Batch Download Card -->
+            <div class="glass rounded-2xl p-8 shadow-xl border border-slate-100 dark:border-slate-800 animate-fade-in" style="animation-delay: 0.2s;">
+                <div class="flex items-center gap-3 mb-6 pb-4 border-b border-slate-200/50 dark:border-slate-700/50">
+                    <span class="w-10 h-10 rounded-full bg-accent-100 dark:bg-accent-900/30 text-accent-600 dark:text-accent-400 flex items-center justify-center">
+                        <i class="fa-solid fa-layer-group"></i>
+                    </span>
+                    <h2 class="text-xl font-bold text-slate-800 dark:text-white">批量下载</h2>
+                </div>
+
+                <div class="space-y-6">
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-slate-700 dark:text-slate-300">镜像列表 (每行一个)</label>
+                        <textarea id="batchImages" rows="5" placeholder="nginx:latest&#10;redis:alpine&#10;mysql:8.0" class="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 focus:outline-none focus:ring-2 focus:ring-accent-500/50 focus:border-accent-500 transition-all font-mono text-sm dark:bg-slate-800/50 dark:border-slate-700 dark:text-white"></textarea>
                     </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label" for="platformInput">目标架构（可选）</label>
-                        <input 
-                            type="text" 
-                            id="platformInput" 
-                            class="form-input" 
-                            placeholder="linux/amd64"
-                            value="linux/amd64"
-                        >
-                        <div class="help-text">
-                            常用平台: linux/amd64, linux/arm64, linux/arm/v7
-                        </div>
-                    </div>
-                    
-                    <div class="switch-container">
-                        <label class="switch">
-                            <input type="checkbox" id="compressedToggle" checked>
-                            <span class="slider"></span>
-                        </label>
-                        <label for="compressedToggle" class="switch-label">使用压缩层（减小包体积）</label>
-                    </div>
-                    
-                    <button type="submit" class="btn btn-primary btn-full" id="downloadBtn">
-                        <span id="downloadText">立即下载</span>
-                        <span id="downloadLoading" class="loading hidden"></span>
+
+                    <div id="batchStatus" class="hidden p-4 rounded-xl text-sm font-medium"></div>
+
+                    <button id="batchDownloadBtn" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-accent-500 to-accent-600 text-white font-bold shadow-lg shadow-accent-500/30 hover:shadow-accent-500/40 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-70 disabled:cursor-not-allowed">
+                        <span id="batchDownloadText"><i class="fa-solid fa-boxes-stacked mr-2"></i> 批量打包下载</span>
+                        <span id="batchDownloadLoading" class="hidden"><i class="fa-solid fa-circle-notch fa-spin mr-2"></i> 处理中...</span>
                     </button>
-                </form>
+                </div>
             </div>
 
-            <div class="batch-section">
-                <h2 class="section-title">多个镜像批量下载</h2>
-                
-                <div id="batchStatus"></div>
-                
-                <form id="batchForm">
-                    <div class="form-group">
-                        <label class="form-label" for="imagesTextarea">镜像列表，每行一个，会将多个镜像自动合并，符合官方标准，兼容docker load</label>
-                        <textarea 
-                            id="imagesTextarea" 
-                            class="textarea" 
-                            placeholder="alpine&#10;redis:alpine&#10;stilleshan/frpc:0.62.1"
-                        ></textarea>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label" for="batchPlatformInput">目标架构（可选）</label>
-                        <input 
-                            type="text" 
-                            id="batchPlatformInput" 
-                            class="form-input" 
-                            placeholder="linux/amd64"
-                            value="linux/amd64"
-                        >
-                        <div class="help-text">
-                            所有镜像将使用相同的目标架构
-                        </div>
-                    </div>
-                    
-                    <div class="switch-container">
-                        <label class="switch">
-                            <input type="checkbox" id="batchCompressedToggle" checked>
-                            <span class="slider"></span>
-                        </label>
-                        <label for="batchCompressedToggle" class="switch-label">使用压缩层（减小包体积）</label>
-                    </div>
-                    
-                    <button type="submit" class="btn btn-primary btn-full" id="batchDownloadBtn">
-                        <span id="batchDownloadText">开始下载</span>
-                        <span id="batchDownloadLoading" class="loading hidden"></span>
-                    </button>
-                </form>
-            </div>
         </div>
     </main>
+    
+    <!-- Footer -->
+    <footer class="py-8 text-center text-slate-500 text-sm glass border-t border-slate-200/50 dark:border-slate-800 mt-auto">
+        
+        <p>© 2025 镜像加速服务</p>
+    </footer>
 
     <script>
-        function initTheme() {
-            const themeToggle = document.getElementById('themeToggle');
-            const html = document.documentElement;
-                     
-            const savedTheme = localStorage.getItem('theme');
-            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            
-            if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
-                html.classList.add('dark');
-                themeToggle.textContent = '☀️';
-            }
-            
-            themeToggle.addEventListener('click', () => {
-                html.classList.toggle('dark');
-                const isDark = html.classList.contains('dark');
-                themeToggle.textContent = isDark ? '☀️' : '🌙';
-                localStorage.setItem('theme', isDark ? 'dark' : 'light');
-            });
-        }
-
-        function showStatus(elementId, message, type = 'success') {
-            const element = document.getElementById(elementId);
-            element.className = `status status-${type}`;
-            element.textContent = message;
-            element.classList.remove('hidden');
-        }
-
-        function hideStatus(elementId) {
-            document.getElementById(elementId).classList.add('hidden');
-        }
-
-        function setButtonLoading(btnId, textId, loadingId, loading) {
-            const btn = document.getElementById(btnId);
-            const text = document.getElementById(textId);
-            const loadingSpinner = document.getElementById(loadingId);
-            
-            btn.disabled = loading;
-            if (loading) {
-                text.classList.add('hidden');
-                loadingSpinner.classList.remove('hidden');
-            } else {
-                text.classList.remove('hidden');
-                loadingSpinner.classList.add('hidden');
-            }
-        }
-
-        function buildDownloadUrl(imageName, platform = '', useCompressed = true) {
-            const encodedImage = imageName.replace(/\//g, '_');
-            let url = `/api/image/download/${encodedImage}`;
-            
-            const params = new URLSearchParams();
-            if (platform && platform.trim()) {
-                params.append('platform', platform.trim());
-            }
-            params.append('compressed', useCompressed.toString());
-            
-            if (params.toString()) {
-                url += '?' + params.toString();
-            }
-            
-            return url;
-        }
-
-        document.getElementById('singleForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const imageName = document.getElementById('imageInput').value.trim();
-            if (!imageName) {
-                showStatus('singleStatus', '请输入镜像名称', 'error');
-                return;
-            }
-            
-            const platform = document.getElementById('platformInput').value.trim();
-            const useCompressed = document.getElementById('compressedToggle').checked;
-            
-            hideStatus('singleStatus');
-            setButtonLoading('downloadBtn', 'downloadText', 'downloadLoading', true);
-            
-            const downloadUrl = buildDownloadUrl(imageName, platform, useCompressed);
-            
-            const link = document.createElement('a');
-            link.href = downloadUrl;
-            link.download = '';
-            link.style.display = 'none';
-            document.body.appendChild(link);
-            
-            link.click();
-            document.body.removeChild(link);
-            
-            const platformText = platform ? ` (${platform})` : '';
-            showStatus('singleStatus', `开始下载 ${imageName}${platformText}`, 'success');
-            setButtonLoading('downloadBtn', 'downloadText', 'downloadLoading', false);
+        // UI Logic
+        const gzipToggleWrapper = document.getElementById('gzipToggleWrapper');
+        const gzipCheckbox = document.getElementById('gzipDetails');
+        
+        gzipToggleWrapper.addEventListener('click', () => {
+            gzipCheckbox.checked = !gzipCheckbox.checked;
+            updateToggleUI();
         });
 
-        document.getElementById('batchForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
+        function updateToggleUI() {
+            const dot = gzipToggleWrapper.querySelector('div');
+            if (gzipCheckbox.checked) {
+                gzipToggleWrapper.className = 'w-10 h-6 bg-primary-500 rounded-full relative cursor-pointer transition-colors dark:bg-primary-600';
+                dot.className = 'w-4 h-4 bg-white rounded-full absolute top-1 left-1 transition-transform translate-x-4 shadow-sm';
+            } else {
+                gzipToggleWrapper.className = 'w-10 h-6 bg-slate-200 rounded-full relative cursor-pointer transition-colors dark:bg-slate-700';
+                dot.className = 'w-4 h-4 bg-white rounded-full absolute top-1 left-1 transition-transform border border-slate-200 dark:border-slate-600';
+            }
+        }
+
+        // Shared Logic (Menu & Theme)
+        const mobileBtn = document.getElementById('mobileMenuBtn');
+        const mobileMenu = document.getElementById('mobileMenu');
+        mobileBtn.addEventListener('click', () => mobileMenu.classList.toggle('hidden'));
+
+        // Theme Toggle
+        const themeToggle = document.getElementById('themeToggle');
+        const html = document.documentElement;
+        
+        function updateThemeIcon(isDark) {
+            const icon = themeToggle.querySelector('i');
+            if (isDark) {
+                icon.className = 'fa-solid fa-sun text-lg';
+            } else {
+                icon.className = 'fa-solid fa-moon text-lg';
+            }
+        }
+
+        function initTheme() {
+            if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                html.classList.add('dark');
+                updateThemeIcon(true);
+            } else {
+                html.classList.remove('dark');
+                updateThemeIcon(false);
+            }
+            updateToggleUI();
+        }
+
+        themeToggle.addEventListener('click', () => {
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                localStorage.theme = 'light';
+                updateThemeIcon(false);
+            } else {
+                html.classList.add('dark');
+                localStorage.theme = 'dark';
+                updateThemeIcon(true);
+            }
+            updateToggleUI();
+        });
+
+        initTheme();
+
+        // Download Logic (Kept from original)
+        function showStatus(elementId, message, type) {
+            const el = document.getElementById(elementId);
+            el.textContent = message;
+            el.classList.remove('hidden', 'bg-green-100', 'text-green-700', 'bg-red-100', 'text-red-700', 'dark:bg-green-900/30', 'dark:text-green-300', 'dark:bg-red-900/30', 'dark:text-red-300');
             
-            const imagesText = document.getElementById('imagesTextarea').value.trim();
-            if (!imagesText) {
-                showStatus('batchStatus', '请输入镜像列表', 'error');
+            if (type === 'success') {
+                el.classList.add('bg-green-100', 'text-green-700', 'dark:bg-green-900/30', 'dark:text-green-300');
+            } else {
+                el.classList.add('bg-red-100', 'text-red-700', 'dark:bg-red-900/30', 'dark:text-red-300');
+            }
+        }
+
+        function setButtonLoading(btnId, textId, loadingId, isLoading) {
+            const btn = document.getElementById(btnId);
+            const text = document.getElementById(textId);
+            const loading = document.getElementById(loadingId);
+            
+            btn.disabled = isLoading;
+            if (isLoading) {
+                text.classList.add('hidden');
+                loading.classList.remove('hidden');
+                btn.classList.add('opacity-75', 'cursor-not-allowed');
+            } else {
+                text.classList.remove('hidden');
+                loading.classList.add('hidden');
+                btn.classList.remove('opacity-75', 'cursor-not-allowed');
+            }
+        }
+
+        document.getElementById('downloadBtn').addEventListener('click', async function() {
+            const image = document.getElementById('imageName').value.trim();
+            const platform = document.getElementById('platformSelect').value;
+            const gzip = document.getElementById('gzipDetails').checked;
+
+            if (!image) {
+                showStatus('statusMessage', '请输入镜像名称', 'error');
                 return;
             }
-            
-            const images = imagesText.split('\n')
-                .map(line => line.trim())
-                .filter(line => line && !line.startsWith('#'));
+
+            setButtonLoading('downloadBtn', 'btnText', 'btnLoading', true);
+            showStatus('statusMessage', '正在解析镜像信息...', 'success');
+
+            try {
+                // 构建正确的 API URL
+                // 后端路由: /api/image/download/:image  (镜像名中的 / 需要替换为 _)
+                const encodedImage = image.replace(/\//g, '_');
+                let url = `/api/image/download/${encodeURIComponent(encodedImage)}`;
+                
+                const params = new URLSearchParams();
+                if (platform) params.append('platform', platform);
+                if (gzip) params.append('compressed', 'true');
+                
+                if (params.toString()) {
+                    url += '?' + params.toString();
+                }
+                
+                // 使用 a 标签触发下载
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = '';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                showStatus('statusMessage', '下载任务已开始', 'success');
+            } catch (error) {
+                showStatus('statusMessage', '请求失败: ' + error.message, 'error');
+            } finally {
+                setButtonLoading('downloadBtn', 'btnText', 'btnLoading', false);
+            }
+        });
+
+        document.getElementById('batchDownloadBtn').addEventListener('click', async function() {
+            const text = document.getElementById('batchImages').value;
+            const platform = document.getElementById('platformSelect').value;
+            const images = text.split('\n').map(l => l.trim()).filter(l => l);
             
             if (images.length === 0) {
-                showStatus('batchStatus', '镜像列表为空', 'error');
+                showStatus('batchStatus', '请输入至少一个镜像', 'error');
+                return;
+            }
+
+            if (images.length > 10) {
+                showStatus('batchStatus', '批量下载最多支持 10 个镜像', 'error');
                 return;
             }
             
-            const platform = document.getElementById('batchPlatformInput').value.trim();
-            const useCompressed = document.getElementById('batchCompressedToggle').checked;
-            
-            const options = {
-                images: images,
-                useCompressedLayers: useCompressed
-            };
-            
-            if (platform) {
-                options.platform = platform;
-            }
-            
-            hideStatus('batchStatus');
             setButtonLoading('batchDownloadBtn', 'batchDownloadText', 'batchDownloadLoading', true);
-            
+            showStatus('batchStatus', `正在打包 ${images.length} 个镜像，大文件可能需要较长时间...`, 'success');
+
             try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10 * 60 * 1000); // 10分钟超时
+                
                 const response = await fetch('/api/image/batch', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(options)
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ images, platform }),
+                    signal: controller.signal
                 });
                 
-                if (response.ok) {
-                    const contentDisposition = response.headers.get('Content-Disposition');
-                    let filename = `batch_${images.length}_images.tar`;
-                    
-                    if (contentDisposition) {
-                        const matches = contentDisposition.match(/filename="(.+)"/);
-                        if (matches) filename = matches[1];
-                    }
-                    
-                    const blob = await response.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = filename;
-                    link.style.display = 'none';
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    window.URL.revokeObjectURL(url);
-                    
-                    const platformText = platform ? ` (${platform})` : '';
-                    showStatus('batchStatus', `开始下载 ${images.length} 个镜像${platformText}`, 'success');
-                } else {
-                    const error = await response.json();
-                    showStatus('batchStatus', error.error || '下载失败', 'error');
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.error || '批量下载失败');
                 }
+                
+                // 使用 blob 下载
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `batch_${images.length}_images.tar`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // 延迟释放 URL 避免下载中断
+                setTimeout(() => window.URL.revokeObjectURL(url), 60000);
+                
+                showStatus('batchStatus', '批量下载完成', 'success');
             } catch (error) {
-                showStatus('batchStatus', '网络错误: ' + error.message, 'error');
+                if (error.name === 'AbortError') {
+                    showStatus('batchStatus', '下载超时，请尝试减少镜像数量', 'error');
+                } else {
+                    showStatus('batchStatus', '请求失败: ' + error.message, 'error');
+                }
             } finally {
                 setButtonLoading('batchDownloadBtn', 'batchDownloadText', 'batchDownloadLoading', false);
             }
         });
-
-        function initMobileMenu() {
-            const mobileMenuToggle = document.getElementById('mobileMenuToggle');
-            const navLinks = document.getElementById('navLinks');
-            
-            if (mobileMenuToggle && navLinks) {
-                mobileMenuToggle.addEventListener('click', () => {
-                    navLinks.classList.toggle('active');
-                });
-                
-                navLinks.addEventListener('click', (e) => {
-                    if (e.target.classList.contains('nav-link')) {
-                        navLinks.classList.remove('active');
-                    }
-                });
-            }
-        }
-
-        initTheme();
-        initMobileMenu();
     </script>
 </body>
-</html> 
+</html>

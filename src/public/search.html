@@ -1,1491 +1,482 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Docker镜像搜索">
-    <meta name="keywords" content="Docker、镜像搜索、docker search">
-    <meta name="color-scheme" content="dark light">
-    <title>Docker镜像搜索</title>
+    <meta name="description" content="HubProxy - Docker 镜像搜索">
+    <title>镜像搜索 - 镜像加速</title>
     <link rel="icon" href="/favicon.ico">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            400: '#38bdf8',
+                            500: '#0ea5e9', // Sky-500
+                            600: '#0284c7',
+                        },
+                        accent: {
+                            400: '#34d399',
+                            500: '#10b981', // Emerald-500
+                            600: '#059669',
+                        }
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.5s ease-out forwards',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0', transform: 'translateY(10px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
     <style>
-        :root {
-            --background: #ffffff;
-            --foreground: #0f172a;
-            --card: #ffffff;
-            --card-foreground: #0f172a;
-            --primary: #2563eb;
-            --primary-foreground: #f8fafc;
-            --secondary: #f1f5f9;
-            --secondary-foreground: #0f172a;
-            --muted: #f1f5f9;
-            --muted-foreground: #64748b;
-            --accent: #f1f5f9;
-            --accent-foreground: #0f172a;
-            --border: #e2e8f0;
-            --input: #ffffff;
-            --ring: #2563eb;
-            --radius: 0.5rem;
+        body { font-family: 'Inter', sans-serif; }
+        .glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
         }
-
-        .dark {
-            --background: #0f172a;
-            --foreground: #f8fafc;
-            --card: #1e293b;
-            --card-foreground: #f8fafc;
-            --primary: #3b82f6;
-            --primary-foreground: #f8fafc;
-            --secondary: #1e293b;
-            --secondary-foreground: #f8fafc;
-            --muted: #1e293b;
-            --muted-foreground: #94a3b8;
-            --accent: #1e293b;
-            --accent-foreground: #f8fafc;
-            --border: #334155;
-            --input: #1e293b;
-            --ring: #3b82f6;
+        .dark .glass {
+            background: rgba(30, 41, 59, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
-
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --background: #0f172a;
-                --foreground: #f8fafc;
-                --card: #1e293b;
-                --card-foreground: #f8fafc;
-                --primary: #3b82f6;
-                --primary-foreground: #f8fafc;
-                --secondary: #1e293b;
-                --secondary-foreground: #f8fafc;
-                --muted: #1e293b;
-                --muted-foreground: #94a3b8;
-                --accent: #1e293b;
-                --accent-foreground: #f8fafc;
-                --border: #334155;
-                --input: #1e293b;
-                --ring: #3b82f6;
-            }
+        .gradient-text {
+            background: linear-gradient(135deg, #0ea5e9 0%, #10b981 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-            background-color: var(--background);
-            color: var(--foreground);
-            line-height: 1.5;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            transition: background-color 0.3s, color 0.3s;
-        }
-
-        .navbar {
-            position: sticky !important;
-            top: 0 !important;
-            z-index: 50 !important;
-            width: 100% !important;
-            border-bottom: 1px solid var(--border) !important;
-            background-color: var(--background) !important;
-            backdrop-filter: blur(8px) !important;
-            background-color: rgba(255, 255, 255, 0.95) !important;
-            padding: 0 !important;
-            margin: 0 !important;
-        }
-
-        .dark .navbar {
-            background-color: rgba(15, 23, 42, 0.95) !important;
-        }
-
-        .navbar-container {
-            max-width: 1200px !important;
-            margin: 0 auto !important;
-            padding: 0 1rem !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: space-between !important;
-            height: 4rem !important;
-        }
-
-        .logo {
-            display: flex !important;
-            align-items: center !important;
-            gap: 0.5rem !important;
-            text-decoration: none !important;
-            color: var(--foreground) !important;
-            font-weight: 600 !important;
-            font-size: 1.125rem !important;
-        }
-
-        .logo-icon {
-            width: 2rem !important;
-            height: 2rem !important;
-            border-radius: 0.5rem !important;
-            background: linear-gradient(135deg, var(--primary), #3b82f6) !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            color: white !important;
-        }
-
-        .nav-links {
-            display: flex !important;
-            align-items: center !important;
-            gap: 0.5rem !important;
-        }
-
-        .nav-link {
-            padding: 0.5rem 1rem !important;
-            border-radius: var(--radius) !important;
-            text-decoration: none !important;
-            color: var(--muted-foreground) !important;
-            transition: all 0.2s !important;
-            font-weight: 500 !important;
-        }
-
-        .nav-link:hover,
-        .nav-link.active {
-            color: var(--foreground) !important;
-            background-color: var(--muted) !important;
-        }
-
-        .theme-toggle {
-            padding: 0.5rem !important;
-            border: none !important;
-            border-radius: var(--radius) !important;
-            background-color: transparent !important;
-            color: var(--muted-foreground) !important;
-            cursor: pointer !important;
-            transition: all 0.2s !important;
-        }
-
-        .theme-toggle:hover {
-            background-color: var(--muted) !important;
-            color: var(--foreground) !important;
-        }
-
-        .main {
-            flex: 1;
-            padding: 2rem 1rem;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        h1 {
-            color: var(--foreground);
-            font-weight: bold;
-            margin-bottom: 30px;
-            text-align: center;
-        }
-
-        .search-container {
-            margin-bottom: 30px;
-        }
-
-        .btn {
-            display: inline-block;
-            padding: 0.375rem 0.75rem;
-            margin-bottom: 0;
-            font-size: 1rem;
-            font-weight: 400;
-            line-height: 1.5;
-            text-align: center;
-            white-space: nowrap;
-            vertical-align: middle;
-            cursor: pointer;
-            border: 1px solid transparent;
-            border-radius: 0.375rem;
-            text-decoration: none;
-            transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-        }
-
-        .input-group {
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 15px;
-            width: 100%;
-            max-width: 600px;
-            margin: 0 auto;
-        }
-
-        .input-group-append {
-            display: flex;
-            width: 100%;
-            justify-content: center;
-        }
-
-        .form-control {
-            display: block;
-            width: 100%;
-            background-color: var(--input);
-            color: var(--foreground);
-            border: 1px solid var(--border);
-            border-radius: 20px;
-            padding: 12px 20px;
-            height: 46px;
-            transition: all 0.2s;
-            font-size: 1rem;
-        }
-
-        .form-control:focus {
-            background-color: var(--input);
-            color: var(--foreground);
-            border-color: var(--ring);
-            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
-            outline: 0;
-        }
-
-        .search-button {
-            border-radius: 20px;
-            padding: 12px 40px;
-            background-color: var(--primary);
-            color: var(--primary-foreground);
-            border: none;
-            transition: all 0.3s ease;
-            height: 46px;
-            font-size: 1rem;
-            font-weight: 500;
-            cursor: pointer;
-            min-width: 120px;
-        }
-
-        .search-button:hover {
-            transform: scale(1.05);
-            background-color: #1d4ed8;
-        }
-
-        .result-card {
-            background-color: var(--card);
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 20px;
-            transition: all 0.3s ease;
-            cursor: pointer;
-            border: 1px solid var(--border);
-        }
-
-        .result-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-
-        .result-title {
-            font-size: 1.2rem;
-            font-weight: 500;
-            margin-bottom: 10px;
-            color: var(--primary);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .result-description {
-            color: var(--muted-foreground);
-            margin: 10px 0;
-            font-size: 0.95rem;
-            line-height: 1.5;
-            opacity: 0.9;
-        }
-
-        .result-meta {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            font-size: 0.9rem;
-            color: var(--muted-foreground);
-            margin-top: 15px;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-
-        .meta-stats {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            flex-wrap: wrap;
-            font-size: 0.95rem;
-        }
-
-        .meta-pulls {
-            font-size: 0.85rem;
-            color: var(--muted-foreground);
-            text-align: right;
-        }
-
-        .meta-pulls .pulls-count {
-            font-size: 1rem;
-            color: var(--foreground);
-            margin-top: 4px;
-        }
-
-        .badge {
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            font-weight: normal;
-            white-space: nowrap;
-        }
-
-        .badge-official {
-            background-color: #28a745;
-            color: white;
-        }
-
-        .badge-organization {
-            background-color: #6c757d;
-            color: white;
-            font-weight: normal;
-        }
-
-        .badge-automated {
-            background-color: #17a2b8;
-            color: white;
-        }
-
-        .meta-item {
-            display: inline-flex;
-            align-items: center;
-            white-space: nowrap;
-            color: var(--muted-foreground);
-        }
-
-        .meta-item .icon {
-            opacity: 0.7;
-        }
-
-        .back-button {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            padding: 2px 8px;
-            background-color: #f5f5f5;
-            border: 0px solid #fafafa;
-            color: #333;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 14px;
-            text-decoration: none;
-        }
-
-        .back-button:hover {
-            background-color: #39c5bc;
-            color: white;
-            transform: scale(1.05);
-            text-decoration: none;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 20px;
-            display: none;
-        }
-
-        .loading-spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid var(--muted);
-            border-top: 4px solid var(--primary);
+        /* Loading Spinner */
+        .spinner {
+            border: 3px solid rgba(0,0,0,0.1);
+            border-left-color: #0ea5e9;
             border-radius: 50%;
+            width: 24px;
+            height: 24px;
             animation: spin 1s linear infinite;
-            margin: 0 auto;
         }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .dark .spinner {
+            border: 3px solid rgba(255,255,255,0.1);
+            border-left-color: #38bdf8;
         }
-
-        #toast {
-            position: fixed;
-            top: 10%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: var(--primary);
-            color: var(--primary-foreground);
-            padding: 15px 20px;
-            border-radius: 10px;
-            font-size: 90%;
-            z-index: 1000;
-            display: none;
-        }
-
-        .pagination {
-            display: flex;
-            justify-content: center;
-            margin-top: 20px;
-        }
-
-        .pagination button {
-            margin: 0 5px;
-            padding: 5px 15px;
-            border: none;
-            border-radius: 5px;
-            background-color: var(--primary);
-            color: var(--primary-foreground);
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .pagination button:disabled {
-            background-color: var(--muted);
-            color: var(--muted-foreground);
-            cursor: not-allowed;
-        }
-
-        .pagination button:hover:not(:disabled) {
-            transform: scale(1.05);
-            background-color: #1d4ed8;
-        }
-
-        .tag-list {
-            margin-top: 20px;
-            display: none;
-        }
-
-        .tag-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 15px;
-            padding: 20px;
-            background-color: var(--card);
-            border-radius: 10px;
-            border: 1px solid var(--border);
-            flex-direction: column;
-        }
-
-        .tag-info {
-            flex: 1;
-            width: 100%;
-        }
-
-        .tag-search-container {
-            width: 100%;
-            margin: 15px 0 20px 0;
-            position: relative;
-            background: var(--card);
-            padding: 15px;
-            border-radius: 10px;
-            border: 2px solid var(--primary);
-            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.1);
-        }
-
-        .tag-search-container::before {
-            content: '🔍 标签搜索';
-            display: block;
-            margin-bottom: 10px;
-            color: var(--primary);
-            font-weight: bold;
-            font-size: 0.9rem;
-        }
-
-        .tag-search-input {
-            width: 100%;
-            padding: 12px 40px 12px 15px;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-            background-color: var(--input);
-            color: var(--foreground);
-            font-size: 1rem;
-            transition: all 0.3s ease;
-        }
-
-        .tag-search-input:focus {
-            outline: none;
-            border-color: var(--ring);
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
-        }
-
-        .tag-search-input::placeholder {
-            color: #888;
-            font-style: italic;
-        }
-
-        .tag-search-clear {
-            position: absolute;
-            right: 25px;
-            top: 50%;
-            transform: translateY(-5%);
-            background: none;
-            border: none;
-            color: var(--foreground);
-            cursor: pointer;
-            padding: 8px;
-            opacity: 0.6;
-            font-size: 1.2rem;
-            transition: all 0.3s ease;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .tag-search-clear:hover {
-            opacity: 1;
-            background-color: rgba(37, 99, 235, 0.1);
-            transform: translateY(-5%) scale(1.1);
-        }
-
-        .tag-search-input::placeholder {
-            color: var(--muted-foreground);
-        }
-
-        .tag-title {
-            font-size: 1.5rem;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .tag-description {
-            color: var(--foreground);
-            opacity: 0.8;
-        }
-
-        .tag-pull-command {
-            background-color: var(--input);
-            padding: 10px 15px;
-            border-radius: 5px;
-            font-family: monospace;
-            margin-top: 10px;
-            position: relative;
-        }
-
-        .copy-button {
-            position: absolute;
-            right: 5px;
-            top: 5px;
-            background: var(--primary);
-            color: var(--primary-foreground);
-            border: none;
-            padding: 2px 8px;
-            border-radius: 3px;
-            cursor: pointer;
-            font-size: 0.8rem;
-        }
-
-        .tag-item {
-            background-color: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 15px;
-            margin-bottom: 15px;
-        }
-
-        .tag-name {
-            font-size: 1.1rem;
-            font-weight: bold;
-            margin-bottom: 10px;
-            color: var(--primary);
-        }
-
-        .tag-meta {
-            font-size: 0.9rem;
-            color: var(--foreground);
-            opacity: 0.8;
-            margin-bottom: 10px;
-        }
-
-        .tag-architectures {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-top: 10px;
-        }
-
-        .arch-item {
-            background-color: var(--input);
-            padding: 5px 10px;
-            border-radius: 5px;
-            font-size: 0.8rem;
-        }
-
-        .vulnerability-indicator {
-            display: inline-flex;
-            gap: 5px;
-            margin-left: 10px;
-        }
-
-        .vulnerability-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            display: inline-block;
-        }
-
-        .vulnerability-critical { background-color: #dc3545; }
-        .vulnerability-high { background-color: #fd7e14; }
-        .vulnerability-medium { background-color: #ffc107; }
-        .vulnerability-low { background-color: #28a745; }
-        .vulnerability-unknown { background-color: #6c757d; }
-
-        .search-results {
-            transition: all 0.3s ease;
-        }
-
-        .back-to-search {
-            margin-bottom: 20px;
-            color: var(--primary);
-            cursor: pointer;
-            display: none;
-        }
-
-        .back-to-search:hover {
-            text-decoration: underline;
-        }
-
-        @media (max-width: 768px) {
-            .result-meta {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-            
-            .meta-pulls {
-                text-align: left;
-                width: 100%;
-            }
-            
-            .nav-links {
-                position: fixed;
-                top: 70px;
-                left: 0;
-                right: 0;
-                background: var(--background);
-                border: 1px solid var(--border);
-                border-top: none;
-                border-radius: 0 0 12px 12px;
-                padding: 1rem;
-                flex-direction: column;
-                gap: 0.5rem;
-                z-index: 1000;
-                transform: translateY(-100vh);
-                transition: transform 0.3s ease;
-            }
-            
-            .nav-links.active {
-                transform: translateY(0);
-            }
-            
-            .mobile-menu-toggle {
-                display: block !important;
-                background: none;
-                border: none;
-                color: var(--foreground);
-                font-size: 1.5rem;
-                cursor: pointer;
-                padding: 0.5rem;
-                border-radius: var(--radius);
-                transition: background-color 0.2s;
-            }
-            
-            .mobile-menu-toggle:hover {
-                background-color: var(--muted);
-            }
-            
-            .navbar-container {
-                justify-content: space-between !important;
-            }
-            
-            .input-group {
-                max-width: 100%;
-                padding: 0 10px;
-            }
-            
-            .search-button {
-                width: 100%;
-                max-width: 200px;
-            }
-        }
-        
-        .mobile-menu-toggle {
-            display: none;
-        }
-
-        .icon {
-            display: inline-block;
-            vertical-align: middle;
-            margin-right: 4px;
-            margin-top: -2px;
-        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
-<body>
-    <nav class="navbar">
-        <div class="navbar-container">
-            <a href="/" class="logo">
-                <div class="logo-icon">
-                    ⚡
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-200 transition-colors duration-300 min-h-screen flex flex-col relative overflow-x-hidden selection:bg-primary-500 selection:text-white">
+
+    <!-- Navbar -->
+    <nav class="fixed top-0 left-0 right-0 z-50 glass border-b border-slate-200/50 dark:border-slate-800 transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo -->
+                <a href="/" class="flex items-center gap-3 group">
+                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center text-white shadow-lg shadow-primary-500/30 transition-transform group-hover:scale-110">
+                        <i class="fa-solid fa-bolt"></i>
+                    </div>
+                    <span class="font-bold text-xl tracking-tight text-slate-800 dark:text-white">镜像加速</span>
+                </a>
+
+                <!-- Desktop Menu -->
+                <div class="hidden md:flex items-center gap-1">
+                    <a href="/" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-primary-600 hover:bg-slate-100/50 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/50 transition-all">
+                        GitHub 加速
+                    </a>
+                    <a href="/images.html" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-primary-600 hover:bg-slate-100/50 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/50 transition-all">
+                        离线镜像
+                    </a>
+                    <a href="/search.html" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-primary-600 hover:bg-slate-100/50 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/50 transition-all bg-slate-100/50 dark:bg-slate-800/50 text-primary-600 dark:text-white font-semibold">
+                        镜像搜索
+                    </a>
+                    <button id="themeToggle" class="ml-2 w-10 h-10 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-orange-500 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-yellow-400 transition-all">
+                        <i class="fa-solid fa-moon text-lg"></i>
+                    </button>
                 </div>
-                加速服务
-            </a>
-            
-            <button class="mobile-menu-toggle" id="mobileMenuToggle">
-                ☰
-            </button>
-            
-            <div class="nav-links" id="navLinks">
-                <a href="/" class="nav-link">🚀 GitHub加速</a>
-                <a href="/images.html" class="nav-link">🐳 离线镜像下载</a>
-                <a href="/search.html" class="nav-link active">🔍 镜像搜索</a>
-                <a href="https://gitee.com/if-the-wind/github-hosts/raw/main/hosts" target="_blank" class="nav-link">📄 Hosts</a>
-                
-                <button class="theme-toggle" id="themeToggle">
-                    🌙
+
+                <!-- Mobile Menu Button -->
+                <button id="mobileMenuBtn" class="md:hidden w-10 h-10 flex items-center justify-center rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">
+                    <i class="fa-solid fa-bars text-xl"></i>
                 </button>
+            </div>
+        </div>
+        
+        <!-- Mobile Menu Dropdown -->
+        <div id="mobileMenu" class="hidden md:hidden glass border-t border-slate-200/50 dark:border-slate-800 absolute w-full left-0">
+            <div class="px-4 pt-2 pb-6 space-y-2">
+                <a href="/" class="block px-4 py-3 rounded-lg text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800/50">GitHub 加速</a>
+                <a href="/images.html" class="block px-4 py-3 rounded-lg text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800/50">离线镜像</a>
+                <a href="/search.html" class="block px-4 py-3 rounded-lg bg-primary-50/50 text-primary-600 font-semibold dark:bg-primary-900/20 dark:text-primary-400">镜像搜索</a>
             </div>
         </div>
     </nav>
 
-    <main class="main">
-        <div class="container">
-        <h1>Docker镜像搜索</h1>
-        
-        <div class="search-container">
-            <div class="input-group">
-                <input type="text" class="form-control" id="searchInput" placeholder="输入镜像名称搜索...">
-                <div class="input-group-append">
-                    <button class="btn search-button" id="searchButton">搜索</button>
+    <!-- Main Content -->
+    <main class="flex-grow pt-28 pb-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto space-y-8">
+            
+            <!-- Hero Search -->
+            <div class="search-container text-center space-y-8 animate-fade-in">
+                <h1 class="text-4xl font-extrabold text-slate-900 dark:text-white">
+                    搜索 <span class="gradient-text">Docker 镜像</span>
+                </h1>
+                
+                <div class="max-w-2xl mx-auto relative group">
+                    <div class="absolute -inset-1 bg-gradient-to-r from-primary-400 via-accent-400 to-primary-400 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000 group-hover:duration-200"></div>
+                    <div class="relative flex items-center">
+                        <input type="text" id="searchInput" placeholder="搜索镜像 例如: mysql, redis，nginx等" 
+                            class="w-full pl-6 pr-32 py-4 rounded-xl bg-white border-0 shadow-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all text-lg dark:bg-slate-800 dark:text-white dark:placeholder-slate-500">
+                        <button id="searchButton" class="absolute right-2 top-2 bottom-2 px-6 rounded-lg bg-primary-500 hover:bg-primary-600 text-white font-medium transition-colors shadow-lg shadow-primary-500/30">
+                            搜索
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Initial State / Results -->
+                <div id="searchResults" class="search-results grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-8 text-left">
+                    <div class="col-span-full text-center py-20 text-slate-400 dark:text-slate-500">
+                        <i class="fa-brands fa-docker text-6xl mb-4 opacity-50"></i>
+                        <p>输入关键词开始探索 Docker Hub</p>
+                    </div>
+                </div>
+
+                <!-- Pagination -->
+                <div id="searchPagination" class="pagination hidden flex justify-center gap-4 pt-8">
+                    <button id="prevPage" class="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700 transition-colors">上一页</button>
+                    <button id="nextPage" class="px-4 py-2 rounded-lg bg-primary-500 hover:bg-primary-600 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-lg shadow-primary-500/30">下一页</button>
                 </div>
             </div>
-        </div>
 
-        <div class="loading">
-            <div class="loading-spinner"></div>
-            <p>正在加载...</p>
-        </div>
+            <!-- Tag List View (Hidden by default) -->
+            <div id="tagListView" class="tag-list hidden max-w-5xl mx-auto animate-fade-in">
+                <button id="backToSearch" class="mb-6 flex items-center gap-2 text-slate-600 hover:text-primary-600 dark:text-slate-400 dark:hover:text-white transition-colors font-medium">
+                    <i class="fa-solid fa-arrow-left"></i> 返回搜索结果
+                </button>
 
-        <div class="back-to-search">← 返回搜索结果</div>
+                <div id="tagListHeader" class="mb-8">
+                    <!-- Header injected here -->
+                </div>
 
-        <div class="search-results">
-            <div id="searchResults"></div>
-            
-            <div class="pagination">
-                <button id="prevPage" disabled>上一页</button>
-                <button id="nextPage" disabled>下一页</button>
+                <div class="relative mb-6">
+                    <input type="text" id="tagSearchInput" placeholder="过滤标签..." class="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500/50 dark:bg-slate-800/50 dark:border-slate-700 dark:text-white transition-all">
+                    <i class="fa-solid fa-filter absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                </div>
+
+                <div id="tagsContainer" class="space-y-3">
+                    <!-- Tags injected here -->
+                </div>
+
+                <div id="tagPagination" class="flex justify-center gap-4 pt-8 hidden">
+                    <button id="tagPrevPage" class="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300">上一页</button>
+                    <button id="tagNextPage" class="px-4 py-2 rounded-lg bg-primary-500 hover:bg-primary-600 text-white disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary-500/30">下一页</button>
+                </div>
             </div>
-        </div>
 
-        <div class="tag-list" id="tagList">
-            <div class="pagination" id="tagPagination" style="display: none;">
-                <button id="tagPrevPage" disabled>上一页</button>
-                <button id="tagNextPage" disabled>下一页</button>
+            <!-- Global Loading Overlay -->
+            <div id="loadingOverlay" class="loading hidden fixed inset-0 z-[60] bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm flex items-center justify-center transition-all duration-300">
+                <div class="px-6 py-4 rounded-xl bg-white dark:bg-slate-800 shadow-2xl flex items-center gap-3 border border-slate-100 dark:border-slate-700">
+                    <div class="spinner"></div>
+                    <span class="font-medium text-slate-700 dark:text-white">加载中...</span>
+                </div>
             </div>
-        </div>
-    </div>
 
-    <div id="toast"></div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="py-8 text-center text-slate-500 text-sm glass border-t border-slate-200/50 dark:border-slate-800 mt-auto">
+       
+        <p>© 2025 镜像加速服务</p>
+    </footer>
+
+    <!-- Toast -->
+    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full shadow-2xl bg-slate-800 text-white hidden z-50 flex items-center gap-2 animate-fade-in text-sm font-medium"></div>
 
     <script>
+        // Utils
         const formatUtils = {
-            formatNumber(num) {
-                if (num >= 1000000000) return (num / 1000000000).toFixed(1) + 'B+';
-                if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M+';
-                if (num >= 1000) return (num / 1000).toFixed(1) + 'K+';
-                return num.toString();
+            formatNumber: (num) => {
+                if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+                if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+                return num;
             },
-            formatTimeAgo(dateString) {
-                if (!dateString) return '未知时间';
-                try {
-                    let date;
-                    date = new Date(dateString);
-                    if (isNaN(date.getTime())) {
-                        const formats = [
-                            { regex: /^(\d{4})-(\d{2})-(\d{2})$/, handler: (m) => new Date(m[1], m[2] - 1, m[3]) },
-                            { regex: /^(\d{4})\/(\d{2})\/(\d{2})$/, handler: (m) => new Date(m[1], m[2] - 1, m[3]) },
-                            { regex: /^(\d{2})\/(\d{2})\/(\d{4})$/, handler: (m) => new Date(m[3], m[1] - 1, m[2]) }
-                        ];
-                        
-                        for (const format of formats) {
-                            const match = dateString.match(format.regex);
-                            if (match) {
-                                date = format.handler(match);
-                                if (!isNaN(date.getTime())) break;
-                            }
-                        }
-                        
-                        if (isNaN(date.getTime())) {
-                            return '未知时间';
-                        }
-                    }
-                    
-                    const now = new Date();
-                    const diffTime = Math.abs(now - date);
-                    const diffMinutes = Math.floor(diffTime / (1000 * 60));
-                    const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
-                    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-                    const diffMonths = Math.floor(diffDays / 30);
-                    const diffYears = Math.floor(diffDays / 365);
-                    
-                    if (diffMinutes < 1) return '刚刚';
-                    if (diffMinutes < 60) return `${diffMinutes}分钟前`;
-                    if (diffHours < 24) return `${diffHours}小时前`;
-                    if (diffDays < 7) return `${diffDays}天前`;
-                    if (diffDays < 30) return `${Math.floor(diffDays / 7)}周前`;
-                    if (diffMonths < 12) return `${diffMonths}个月前`;
-                    if (diffYears < 1) return '近1年';
-                    return `${diffYears}年前`;
-                } catch (error) {
-                    console.warn('日期处理错误:', error);
-                    return '未知时间';
+            formatTimeAgo: (timestamp) => {
+                if (!timestamp) return '';
+                let date = new Date(timestamp);
+                if (isNaN(date.getTime())) {
+                    date = new Date(parseFloat(timestamp) * 1000);
                 }
+                return isNaN(date.getTime()) ? '无效日期' : date.toLocaleDateString();
             },
-            formatSize(bytes) {
+            formatSize: (bytes) => {
+                if (!bytes) return '未知';
                 const units = ['B', 'KB', 'MB', 'GB'];
                 let size = bytes;
-                let unitIndex = 0;
-                while (size >= 1024 && unitIndex < units.length - 1) {
-                    size /= 1024;
-                    unitIndex++;
-                }
-                return `${size.toFixed(2)} ${units[unitIndex]}`;
+                let i = 0;
+                while (size >= 1024 && i < units.length - 1) { size /= 1024; i++; }
+                return `${size.toFixed(2)} ${units[i]}`;
             }
         };
 
-        let currentPage = 1;
-        let totalPages = 1;
-        let currentQuery = '';
+        // State
+        const searchContainer = document.querySelector('.search-container');
+        const tagListView = document.getElementById('tagListView');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const searchInput = document.getElementById('searchInput'); // ID Verified
+        let currentPage = 1, totalPages = 1;
+        let currentTagPage = 1, totalTagPages = 1;
         let currentRepo = null;
-        
-        // 标签分页相关变量
-        let currentTagPage = 1;
-        let totalTagPages = 1;
+        let currentPageTags = [];
 
-        document.getElementById('searchButton').addEventListener('click', () => {
-            currentPage = 1;
-            performSearch();
-        });
-
-        document.getElementById('searchInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                currentPage = 1;
-                performSearch();
-            }
-        });
-
-        document.getElementById('prevPage').addEventListener('click', () => {
-            if (currentPage > 1) {
-                currentPage--;
-                performSearch();
-            }
-        });
-
-        document.getElementById('nextPage').addEventListener('click', () => {
-            if (currentPage < totalPages) {
-                currentPage++;
-                performSearch();
-            }
-        });
-
-        document.querySelector('.back-to-search').addEventListener('click', () => {
-            showSearchResults();
-        });
-
-        // 使用事件委托处理分页按钮点击（避免DOM重建导致事件丢失）
-        document.addEventListener('click', (e) => {
-            if (e.target.id === 'tagPrevPage') {
-                if (currentTagPage > 1) {
-                    currentTagPage--;
-                    loadTagPage();
-                }
-            } else if (e.target.id === 'tagNextPage') {
-                if (currentTagPage < totalTagPages) {
-                    currentTagPage++;
-                    loadTagPage();
-                }
-            }
-        });
-
-        function showLoading() {
-            document.querySelector('.loading').style.display = 'block';
+        // UI Helpers
+        function showLoading() { loadingOverlay.classList.remove('hidden'); }
+        function hideLoading() { loadingOverlay.classList.add('hidden'); }
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.remove('hidden');
+            setTimeout(() => t.classList.add('hidden'), 3000);
         }
-
-        function hideLoading() {
-            document.querySelector('.loading').style.display = 'none';
-        }
-
-        function showToast(message) {
-            const toast = document.getElementById('toast');
-            toast.textContent = message;
-            toast.style.display = 'block';
-            setTimeout(() => {
-                toast.style.display = 'none';
-            }, 3000);
-        }
-
-        // 统一分页更新函数（支持搜索和标签分页）
-        function updatePagination(config = {}) {
-            const {
-                currentPage: page = currentPage,
-                totalPages: total = totalPages,
-                prefix = ''
-            } = config;
-
-            const prevButtonId = prefix ? `${prefix}PrevPage` : 'prevPage';
-            const nextButtonId = prefix ? `${prefix}NextPage` : 'nextPage';
-            const paginationId = prefix ? `${prefix}Pagination` : '.pagination';
-
-            const prevButton = document.getElementById(prevButtonId);
-            const nextButton = document.getElementById(nextButtonId);
-            const paginationDiv = prefix ? document.getElementById(paginationId) : document.querySelector(paginationId);
-            
-            if (!prevButton || !nextButton || !paginationDiv) {
-                return; // 静默处理，避免控制台警告
-            }
-            
-            // 更新按钮状态
-            prevButton.disabled = page <= 1;
-            nextButton.disabled = page >= total;
-            
-            // 更新或创建页面信息
-            const pageInfoId = prefix ? `${prefix}PageInfo` : 'pageInfo';
-            let pageInfo = document.getElementById(pageInfoId);
-            
-            if (!pageInfo) {
-                pageInfo = createPageInfo(pageInfoId, prefix, total);
-                paginationDiv.insertBefore(pageInfo, nextButton);
-            }
-            
-            updatePageInfo(pageInfo, page, total, prefix);
-            paginationDiv.style.display = total > 1 ? 'flex' : 'none';
-        }
-
-        // 创建页面信息元素
-        function createPageInfo(pageInfoId, prefix, total) {
-            const container = document.createElement('div');
-            container.id = pageInfoId;
-            container.style.cssText = 'margin: 0 10px; display: flex; align-items: center; gap: 10px;';
-            
-            const pageText = document.createElement('span');
-            pageText.id = prefix ? `${prefix}PageText` : 'pageText';
-            
-            const jumpInput = document.createElement('input');
-            jumpInput.type = 'number';
-            jumpInput.min = '1';
-            jumpInput.max = prefix === 'tag' ? total : Math.min(total, 100); // 搜索页面限制100页
-            jumpInput.id = prefix ? `${prefix}JumpPage` : 'jumpPage';
-            jumpInput.style.cssText = 'width: 60px; padding: 4px; border-radius: 4px; border: 1px solid var(--border); background-color: var(--input); color: var(--foreground);';
-            
-            const jumpButton = document.createElement('button');
-            jumpButton.textContent = '跳转';
-            jumpButton.className = 'btn search-button';
-            jumpButton.style.padding = '4px 8px';
-            jumpButton.onclick = () => handlePageJump(jumpInput, prefix, total);
-            
-            container.append(pageText, jumpInput, jumpButton);
-            return container;
-        }
-
-        // 更新页面信息显示
-        function updatePageInfo(pageInfo, page, total, prefix) {
-            const pageText = pageInfo.querySelector('span');
-            const jumpInput = pageInfo.querySelector('input');
-            
-            // 标签分页显示策略：根据是否确定总页数显示不同格式
-            const isTagPagination = prefix === 'tag';
-            const maxDisplayPages = isTagPagination ? total : Math.min(total, 100);
-            const pageTextContent = isTagPagination 
-                ? `第 ${page} 页` + (total > page ? ` (至少 ${total} 页)` : ` (共 ${total} 页)`)
-                : `第 ${page} / ${maxDisplayPages} 页 共 ${maxDisplayPages} 页` + (total > 100 ? ' (最多100页)' : '');
-            
-            pageText.textContent = pageTextContent;
-            jumpInput.max = maxDisplayPages;
-            jumpInput.value = page;
-        }
-
-        // 处理页面跳转
-        function handlePageJump(jumpInput, prefix, total) {
-            const inputPage = parseInt(jumpInput.value);
-            const maxPage = prefix === 'tag' ? total : Math.min(total, 100);
-            if (!inputPage || inputPage < 1 || inputPage > maxPage) {
-                const limitText = prefix === 'tag' ? '页码' : '页码 (最多100页)';
-                showToast(`请输入有效的${limitText}`);
-                return;
-            }
-            
-            if (prefix === 'tag') {
-                currentTagPage = inputPage;
-                loadTagPage();
+        function switchView(view) {
+            if (view === 'search') {
+                searchContainer.classList.remove('hidden');
+                tagListView.classList.add('hidden');
             } else {
-                currentPage = inputPage;
-                performSearch();
+                searchContainer.classList.add('hidden');
+                tagListView.classList.remove('hidden');
             }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        // 统一仓库信息处理
-        function parseRepositoryInfo(repo) {
-            const namespace = repo.namespace || (repo.is_official ? 'library' : '');
-            let name = repo.name || repo.repo_name || '';
-            
-            // 清理名称，确保不包含命名空间前缀
-            if (name.includes('/')) {
-                const parts = name.split('/');
-                name = parts[parts.length - 1];
-            }
-            
-            const cleanName = name.replace(/^library\//, '');
-            const fullRepoName = repo.is_official ? cleanName : `${namespace}/${cleanName}`;
-            
-            return {
-                namespace,
-                name,
-                cleanName,
-                fullRepoName
-            };
-        }
-
-        // 分页更新函数
-        const updateSearchPagination = () => updatePagination();
-        const updateTagPagination = () => updatePagination({
-            currentPage: currentTagPage,
-            totalPages: totalTagPages,
-            prefix: 'tag'
-        });
-
-        function showSearchResults() {
-            document.querySelector('.search-results').style.display = 'block';
-            document.querySelector('.tag-list').style.display = 'none';
-            document.querySelector('.back-to-search').style.display = 'none';
-            document.querySelector('.search-container').style.display = 'block';
-        }
-
-        function showTagList() {
-            document.querySelector('.search-results').style.display = 'none';
-            document.querySelector('.tag-list').style.display = 'block';
-            document.querySelector('.back-to-search').style.display = 'block';
-            document.querySelector('.search-container').style.display = 'none';
-        }
-
+        // Logic: Search
         async function performSearch() {
-            const query = document.getElementById('searchInput').value.trim();
-            if (!query) {
-                showToast('请输入搜索关键词');
-                return;
-            }
-
-            currentQuery = query;
+            const query = searchInput.value.trim();
+            if (!query) { showToast('请输入关键词'); return; }
+            
             showLoading();
-
             try {
                 let searchQuery = query;
-                let targetRepo = '';
-                if (query.includes('/')) {
-                    const [namespace, repo] = query.split('/');
-                    searchQuery = namespace;
-                    targetRepo = repo.toLowerCase();
-                }
-
+                
                 const response = await fetch(`/search?q=${encodeURIComponent(searchQuery)}&page=${currentPage}&page_size=25`);
+                if (!response.ok) throw new Error('搜索失败');
                 const data = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(data.error || '搜索请求失败');
-                }
                 
                 totalPages = Math.min(Math.ceil(data.count / 25), 100);
                 updatePagination();
-                
-                displayResults(data.results, targetRepo);
-            } catch (error) {
-                console.error('搜索错误:', error);
-                showToast(error.message || '搜索失败，请稍后重试');
+                renderResults(data.results);
+            } catch (e) {
+                showToast(e.message);
+                console.error(e);
             } finally {
                 hideLoading();
             }
         }
 
-        function displayResults(results, targetRepo = '') {
-            const resultsContainer = document.getElementById('searchResults');
-            resultsContainer.innerHTML = '';
-
-            if (!results || results.length === 0) {
-                resultsContainer.innerHTML = '<div class="text-center">未找到相关镜像</div>';
+        function renderResults(results) {
+            const container = document.getElementById('searchResults');
+            if (!results || !results.length) {
+                container.innerHTML = `<div class="col-span-full text-center py-20 text-slate-400">未找到结果</div>`;
                 return;
             }
 
-            results.sort((a, b) => {
-                if (targetRepo) {
-                    const aName = (a.name || a.repo_name || '').toLowerCase();
-                    const bName = (b.name || b.repo_name || '').toLowerCase();
-                    const aMatch = aName === targetRepo || aName.endsWith('/' + targetRepo);
-                    const bMatch = bName === targetRepo || bName.endsWith('/' + targetRepo);
-                    
-                    if (aMatch && !bMatch) return -1;
-                    if (!aMatch && bMatch) return 1;
-                }
+            container.innerHTML = results.map(repo => {
+                const name = repo.is_official ? (repo.name || repo.repo_name).replace('library/', '') : (repo.namespace ? `${repo.namespace}/${repo.name || repo.repo_name}` : repo.name || repo.repo_name);
                 
-                if (a.is_official !== b.is_official) {
-                    return b.is_official - a.is_official;
-                }
-                
-                return b.pull_count - a.pull_count;
-            });
-
-            results.forEach(result => {
-                const card = document.createElement('div');
-                card.className = 'result-card';
-                
-                let displayName = '';
-                if (result.is_official) {
-                    displayName = (result.name || result.repo_name || '').replace('library/', '');
-                } else {
-                    const name = result.name || result.repo_name || '';
-                    displayName = result.namespace ? `${result.namespace}/${name}` : name;
-                }
-
-                const description = result.short_description || '暂无描述';
-                const starCount = result.star_count || 0;
-                const pullCount = result.pull_count || 0;
-                const pullsLastWeek = result.pulls_last_week || 0;
-                const lastUpdated = result.last_updated || '';
-                const organization = result.affiliation || '';
-
-                const badges = [];
-                if (result.is_official) badges.push('<span class="badge badge-official">官方</span>');
-                if (organization) badges.push(`<span class="badge badge-organization">By ${organization}</span>`);
-
-                const stats = [];
-                if (starCount > 0) stats.push(`<span class="meta-item">⭐ ${formatUtils.formatNumber(starCount)}</span>`);
-                if (pullCount > 0) stats.push(`<span class="meta-item">⬇️ ${formatUtils.formatNumber(pullCount)}+</span>`);
-
-                card.innerHTML = `
-                    <div class="result-title">
-                        ${displayName}
-                        ${badges.join(' ')}
-                    </div>
-                    <div class="result-description">${description}</div>
-                    <div class="result-meta">
-                        <div class="meta-stats">
-                            ${stats.join(' ')}
-                            ${lastUpdated ? `<span class="meta-item">更新于 ${formatUtils.formatTimeAgo(lastUpdated)}</span>` : ''}
-                        </div>
-                        ${pullsLastWeek > 0 ? `
-                        <div class="meta-pulls">
-                            <div>本周拉取次数</div>
-                            <div class="pulls-count">${formatUtils.formatNumber(pullsLastWeek)}</div>
-                        </div>
-                        ` : ''}
-                    </div>
-                `;
-
-                card.addEventListener('click', () => {
-                    currentRepo = result;
-                    const namespace = result.namespace || (result.is_official ? 'library' : '');
-                    const name = result.name || result.repo_name || '';
-                    const repoName = name.replace('library/', '');
-                    if (!namespace || !repoName) {
-                        showToast('无效的仓库信息');
-                        return;
-                    }
-                    loadTags(namespace, repoName);
-                });
-
-                resultsContainer.appendChild(card);
-            });
-        }
-
-        // 内存管理
-        
-        async function loadTags(namespace, name) {
-            currentTagPage = 1;
-            await loadTagPage(namespace, name);
-        }
-
-        async function loadTagPage(namespace = null, name = null) {
-            showLoading();
-            try {
-                // 如果传入了新的namespace和name，更新currentRepo
-                if (namespace && name) {
-                    // 清理旧数据，防止内存泄露
-                    cleanupOldTagData();
-                }
-
-                // 获取当前仓库信息
-                const repoInfo = parseRepositoryInfo(currentRepo);
-                const currentNamespace = namespace || repoInfo.namespace;
-                const currentName = name || repoInfo.name;
-                
-                // 调试日志
-                console.log(`loadTagPage: namespace=${currentNamespace}, name=${currentName}, page=${currentTagPage}`);
-                
-                if (!currentNamespace || !currentName) {
-                    showToast('命名空间和镜像名称不能为空');
-                    return;
-                }
-
-                const response = await fetch(`/tags/${encodeURIComponent(currentNamespace)}/${encodeURIComponent(currentName)}?page=${currentTagPage}&page_size=100`);
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(errorText || '获取标签信息失败');
-                }
-
-                const data = await response.json();
-                
-                // 改进的总页数计算：使用更准确的分页策略
-                if (data.has_more) {
-                    // 如果还有更多页面，至少有当前页+1页，但可能更多
-                    totalTagPages = Math.max(currentTagPage + 1, totalTagPages);
-                } else {
-                    // 如果没有更多页面，当前页就是最后一页
-                    totalTagPages = currentTagPage;
-                }
-                
-                displayTags(data.tags, data.has_more);
-                updateTagPagination();
-                
-                if (namespace && name) {
-                    showTagList();
-                }
-            } catch (error) {
-                console.error('加载标签错误:', error);
-                showToast(error.message || '获取标签信息失败，请稍后重试');
-            } finally {
-                hideLoading();
-            }
-        }
-
-        function cleanupOldTagData() {
-            // 清理全局变量，释放内存
-            if (window.currentPageTags) {
-                window.currentPageTags.length = 0;
-                window.currentPageTags = null;
-            }
-            
-            // 清理DOM缓存
-            const tagsContainer = document.getElementById('tagsContainer');
-            if (tagsContainer) {
-                tagsContainer.innerHTML = '';
-            }
-        }
-
-        function displayTags(tags, hasMore = false) {
-            const tagList = document.getElementById('tagList');
-            const repoInfo = parseRepositoryInfo(currentRepo);
-            const { fullRepoName } = repoInfo;
-            
-            let header = `
-                <div class="tag-header">
-                    <div class="tag-info">
-                        <div class="tag-title">
-                            ${fullRepoName}
-                            ${currentRepo.is_official ? '<span class="badge badge-official">官方</span>' : ''}
-                            ${currentRepo.affiliation ? `<span class="badge badge-organization">By ${currentRepo.affiliation}</span>` : ''}
-                        </div>
-                        <div class="tag-description">${currentRepo.short_description || '暂无描述'}</div>
-                        <div class="tag-meta">
-                            ${currentRepo.star_count > 0 ? `<span class="meta-item">⭐ ${formatUtils.formatNumber(currentRepo.star_count)}</span>` : ''}
-                            ${currentRepo.pull_count > 0 ? `<span class="meta-item">⬇️ ${formatUtils.formatNumber(currentRepo.pull_count)}+</span>` : ''}
-                            ${currentRepo.last_updated ? `<span class="meta-item">更新于 ${formatUtils.formatTimeAgo(currentRepo.last_updated)}</span>` : ''}
-                        </div>
-                        <div class="tag-pull-command">
-                            docker pull ${fullRepoName}
-                            <button class="copy-button" onclick="copyToClipboard('docker pull ${fullRepoName}')">复制</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="tag-search-container">
-                    <input type="text" class="tag-search-input" placeholder="输入关键词搜索标签，支持模糊匹配..." oninput="filterTags(this.value)">
-                    <button class="tag-search-clear" onclick="clearTagSearch()">×</button>
-                </div>
-                <div id="tagsContainer"></div>
-                <div class="pagination" id="tagPagination" style="display: none;">
-                    <button id="tagPrevPage" disabled>上一页</button>
-                    <button id="tagNextPage" disabled>下一页</button>
-                </div>
-            `;
-
-            tagList.innerHTML = header;
-            
-            // 存储当前页标签数据
-            window.currentPageTags = tags;
-            renderFilteredTags(tags);
-        }
-
-        function renderFilteredTags(filteredTags) {
-            const tagsContainer = document.getElementById('tagsContainer');
-            const repoInfo = parseRepositoryInfo(currentRepo);
-            const { fullRepoName } = repoInfo;
-
-            if (filteredTags.length === 0) {
-                tagsContainer.innerHTML = '<div class="text-center" style="padding: 20px;">未找到匹配的标签</div>';
-                return;
-            }
-
-            // 渐进式渲染：分批处理大数据集
-            const BATCH_SIZE = 50;
-            
-            if (filteredTags.length <= BATCH_SIZE) {
-                // 小数据集：直接渲染
-                renderTagsBatch(filteredTags, fullRepoName, tagsContainer, true);
-            } else {
-                // 大数据集：分批渲染
-                tagsContainer.innerHTML = ''; // 清空容器
-                let currentBatch = 0;
-                
-                function renderNextBatch() {
-                    const start = currentBatch * BATCH_SIZE;
-                    const end = Math.min(start + BATCH_SIZE, filteredTags.length);
-                    const batch = filteredTags.slice(start, end);
-                    
-                    renderTagsBatch(batch, fullRepoName, tagsContainer, false);
-                    
-                    currentBatch++;
-                    if (end < filteredTags.length) {
-                        // 使用requestAnimationFrame确保UI响应性
-                        requestAnimationFrame(renderNextBatch);
-                    }
-                }
-                
-                renderNextBatch();
-            }
-        }
-
-        function renderTagsBatch(tags, fullRepoName, container, replaceContent = false) {
-            const tagsHtml = tags.map(tag => {
-                const vulnIndicators = Object.entries(tag.vulnerabilities || {})
-                    .map(([level, count]) => count > 0 ? `<span class="vulnerability-dot vulnerability-${level.toLowerCase()}" title="${level}: ${count}"></span>` : '')
-                    .join('');
-
-                const images = tag.images || [];
-                const architectures = images.map(img => {
-                    const arch = `${img.os}/${img.architecture}${img.variant ? '/' + img.variant : ''}`;
-                    const size = formatUtils.formatSize(img.size);
-                    return `<div class="arch-item" title="大小: ${size}">${arch}</div>`;
-                }).join('');
-
                 return `
-                    <div class="tag-item">
-                        <div class="tag-name">
-                            ${tag.name}
-                            ${vulnIndicators ? `<div class="vulnerability-indicator">${vulnIndicators}</div>` : ''}
+                <div class="glass rounded-xl p-6 shadow-md hover:shadow-xl transition-all hover:-translate-y-1 cursor-pointer border border-slate-100 dark:border-slate-800 group" onclick="viewRepoTags(${JSON.stringify(repo).replace(/"/g, '&quot;')})">
+                    <div class="flex items-start justify-between mb-4">
+                        <div class="font-bold text-lg text-slate-800 dark:text-white truncate pr-2 group-hover:text-primary-500 transition-colors" title="${name}">${name}</div>
+                        <div class="flex gap-1 shrink-0">
+                            ${repo.is_official ? '<span class="px-2 py-0.5 rounded text-xs font-semibold bg-primary-100 text-primary-700 dark:bg-primary-900/50 dark:text-primary-300">OFFICIAL</span>' : ''}
                         </div>
-                        <div class="tag-meta">
-                            <span>最后更新: ${formatUtils.formatTimeAgo(tag.last_updated)}</span>
-                            ${tag.last_pusher ? `<span>由 ${tag.last_pusher} 推送</span>` : ''}
-                            ${tag.full_size ? `<span>大小: ${formatUtils.formatSize(tag.full_size)}</span>` : ''}
-                        </div>
-                        <div class="tag-pull-command">
-                            docker pull ${fullRepoName}:${tag.name}
-                            <button class="copy-button" onclick="copyToClipboard('docker pull ${fullRepoName}:${tag.name}')">复制</button>
-                        </div>
-                        ${architectures ? `<div class="tag-architectures">${architectures}</div>` : ''}
                     </div>
+                    <p class="text-sm text-slate-500 dark:text-slate-400 line-clamp-2 h-10 mb-4">${repo.short_description || '暂无描述'}</p>
+                    <div class="flex items-center gap-4 text-xs text-slate-400 font-medium">
+                        <span class="flex items-center gap-1"><i class="fa-solid fa-star text-yellow-400"></i> ${formatUtils.formatNumber(repo.star_count)}</span>
+                        <span class="flex items-center gap-1"><i class="fa-solid fa-download text-primary-400"></i> ${formatUtils.formatNumber(repo.pull_count)}</span>
+                    </div>
+                </div>
                 `;
             }).join('');
+        }
 
-            if (replaceContent) {
-                container.innerHTML = tagsHtml;
-            } else {
-                container.insertAdjacentHTML('beforeend', tagsHtml);
+        // Logic: Tags
+        window.viewRepoTags = async (repo) => {
+            currentRepo = repo;
+            currentTagPage = 1;
+            await loadTags();
+        };
+
+        async function loadTags() {
+            showLoading();
+            try {
+                const namespace = currentRepo.namespace || (currentRepo.is_official ? 'library' : '');
+                const name = (currentRepo.name || currentRepo.repo_name).replace('library/', '');
+                
+                const fullRepoName = currentRepo.is_official ? name : `${namespace}/${name}`;
+                document.getElementById('tagListHeader').innerHTML = `
+                    <div class="glass rounded-xl p-6 border-l-4 border-primary-500 shadow-lg">
+                        <h2 class="text-2xl font-bold mb-2 flex items-center gap-3 text-slate-800 dark:text-white">
+                            ${fullRepoName}
+                            ${currentRepo.is_official ? '<i class="fa-solid fa-certificate text-primary-500" title="官方镜像"></i>' : ''}
+                        </h2>
+                        <div class="flex flex-wrap items-center gap-4 text-sm text-slate-600 dark:text-slate-300 mb-4">
+                            <span class="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">⭐ ${currentRepo.star_count}</span>
+                            <span class="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">⬇️ ${currentRepo.pull_count}</span>
+                        </div>
+                        <div class="bg-slate-900 rounded-lg p-3 flex items-center justify-between group">
+                            <code class="text-green-400 font-mono text-sm break-all">docker pull ${fullRepoName}</code>
+                            <button class="text-slate-400 hover:text-white transition-colors shrink-0 ml-2" onclick="copyText('docker pull ${fullRepoName}')">
+                                <i class="fa-regular fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                const res = await fetch(`/tags/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}?page=${currentTagPage}&page_size=50`);
+                if (!res.ok) throw new Error('标签获取失败');
+                const data = await res.json();
+                
+                totalTagPages = data.has_more ? currentTagPage + 1 : currentTagPage;
+                document.getElementById('tagPagination').classList.toggle('hidden', totalTagPages <= 1);
+                document.getElementById('tagPrevPage').disabled = currentTagPage <= 1;
+                document.getElementById('tagNextPage').disabled = !data.has_more;
+
+                currentPageTags = data.tags;
+                renderTags(data.tags);
+                switchView('tags');
+            } catch (e) {
+                showToast(e.message);
+            } finally {
+                hideLoading();
             }
         }
 
-        function filterTags(searchText) {
-            if (!window.currentPageTags) return;
+        function renderTags(tags) {
+            const container = document.getElementById('tagsContainer');
+            const repoInfo = currentRepo.is_official ? (currentRepo.name || currentRepo.repo_name).replace('library/', '') : `${currentRepo.namespace}/${currentRepo.name || currentRepo.repo_name}`;
 
-            const searchLower = searchText.toLowerCase();
-            let filteredTags;
-
-            if (!searchText) {
-                filteredTags = window.currentPageTags;
-            } else {
-                const scoredTags = window.currentPageTags.map(tag => {
-                    const name = tag.name.toLowerCase();
-                    let score = 0;
-
-                    if (name === searchLower) {
-                        score += 100;
-                    }
-                    else if (name.startsWith(searchLower)) {
-                        score += 50;
-                    }
-                    else if (name.includes(searchLower)) {
-                        score += 30;
-                    }
-                    else if (searchLower.split(/\s+/).some(word => name.includes(word))) {
-                        score += 10;
-                    }
-
-                    return { tag, score };
-                }).filter(item => item.score > 0);
-
-                scoredTags.sort((a, b) => b.score - a.score);
-                filteredTags = scoredTags.map(item => item.tag);
-            }
-
-            renderFilteredTags(filteredTags);
+            if (!tags.length) container.innerHTML = '<div class="text-center py-6 text-slate-500">无标签数据</div>';
+            else container.innerHTML = tags.map(tag => `
+                <div class="glass p-4 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 border border-slate-100 dark:border-slate-800 hover:border-primary-200 dark:hover:border-primary-800 transition-colors">
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="font-bold text-lg text-slate-800 dark:text-white">${tag.name}</span>
+                            <span class="text-xs text-slate-400">Last updated: ${formatUtils.formatTimeAgo(tag.last_updated)}</span>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            ${(tag.images || []).map(img => `
+                                <span class="text-xs px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                                    ${img.os}/${img.architecture}
+                                </span>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3 shrink-0">
+                         <div class="text-right hidden md:block">
+                            <div class="text-xs text-slate-400">Size: ${formatUtils.formatSize(tag.full_size)}</div>
+                         </div>
+                         <button class="w-8 h-8 rounded-lg bg-primary-50 dark:bg-primary-900/30 text-primary-600 flex items-center justify-center hover:bg-primary-100 dark:hover:bg-primary-900/50 transition-colors" onclick="copyText('docker pull ${repoInfo}:${tag.name}')" title="复制 Pull 命令">
+                            <i class="fa-solid fa-copy"></i>
+                         </button>
+                    </div>
+                </div>
+            `).join('');
         }
 
-        function clearTagSearch() {
-            const searchInput = document.querySelector('.tag-search-input');
-            if (searchInput) {
-                searchInput.value = '';
-                filterTags('');
-            }
+        // Search Events
+        document.getElementById('prevPage').onclick = () => { if(currentPage>1) { currentPage--; performSearch(); }};
+        document.getElementById('nextPage').onclick = () => { if(currentPage<totalPages) { currentPage++; performSearch(); }};
+        document.getElementById('searchButton').onclick = () => { currentPage=1; performSearch(); };
+        document.getElementById('searchInput').onkeypress = (e) => { if(e.key==='Enter') { currentPage=1; performSearch(); }};
+
+        // Tag Events
+        document.getElementById('tagPrevPage').onclick = () => { if(currentTagPage>1) { currentTagPage--; loadTags(); }};
+        document.getElementById('tagNextPage').onclick = () => { currentTagPage++; loadTags(); };
+        document.getElementById('backToSearch').onclick = () => switchView('search');
+
+        // Filter Tags
+        document.getElementById('tagSearchInput').addEventListener('input', (e) => {
+            const val = e.target.value.toLowerCase();
+            const filtered = currentPageTags.filter(t => t.name.toLowerCase().includes(val));
+            renderTags(filtered);
+        });
+
+        // Global Copy
+        window.copyText = (txt) => { navigator.clipboard.writeText(txt).then(() => showToast('已复制')); };
+        
+        // Update Pagination Visibility
+        function updatePagination() {
+            document.getElementById('searchPagination').classList.toggle('hidden', totalPages <= 1);
+            document.getElementById('prevPage').disabled = currentPage <= 1;
+            document.getElementById('nextPage').disabled = currentPage >= totalPages;
         }
 
-
-
-        function copyToClipboard(text) {
-            navigator.clipboard.writeText(text).then(() => {
-                showToast('已复制到剪贴板');
-            }).catch(() => {
-                showToast('复制失败');
-            });
-        }
-
-        const urlParams = new URLSearchParams(window.location.search);
-        const initialQuery = urlParams.get('q');
-        if (initialQuery) {
-            document.getElementById('searchInput').value = initialQuery;
-            performSearch();
-        }
+        // Shared Menu & Theme Logic (FIXED & UNIFIED)
+        const mobileBtn = document.getElementById('mobileMenuBtn');
+        const mobileMenu = document.getElementById('mobileMenu');
+        mobileBtn.addEventListener('click', () => mobileMenu.classList.toggle('hidden'));
 
         const themeToggle = document.getElementById('themeToggle');
         const html = document.documentElement;
-                 
-        const savedTheme = localStorage.getItem('theme');
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        
-        if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
-            html.classList.add('dark');
-            themeToggle.textContent = '☀️';
+
+        function updateThemeIcon(isDark) {
+            const icon = themeToggle.querySelector('i');
+            if (isDark) {
+                icon.className = 'fa-solid fa-sun text-lg';
+            } else {
+                icon.className = 'fa-solid fa-moon text-lg';
+            }
         }
-        
+
+        function initTheme() {
+            if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                html.classList.add('dark');
+                updateThemeIcon(true);
+            } else {
+                html.classList.remove('dark');
+                updateThemeIcon(false);
+            }
+        }
+
         themeToggle.addEventListener('click', () => {
-            html.classList.toggle('dark');
-            const isDark = html.classList.contains('dark');
-            themeToggle.textContent = isDark ? '☀️' : '🌙';
-            localStorage.setItem('theme', isDark ? 'dark' : 'light');
-        });
-        
-        const mobileMenuToggle = document.getElementById('mobileMenuToggle');
-        const navLinks = document.getElementById('navLinks');
-        
-        mobileMenuToggle.addEventListener('click', () => {
-            navLinks.classList.toggle('active');
-            mobileMenuToggle.textContent = navLinks.classList.contains('active') ? '✕' : '☰';
-        });
-        
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.navbar') && navLinks.classList.contains('active')) {
-                navLinks.classList.remove('active');
-                mobileMenuToggle.textContent = '☰';
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                localStorage.theme = 'light';
+                updateThemeIcon(false);
+            } else {
+                html.classList.add('dark');
+                localStorage.theme = 'dark';
+                updateThemeIcon(true);
             }
         });
+
+        initTheme();
+
+        // Check for Initial Query
+        const urlParams = new URLSearchParams(window.location.search);
+        const initialQuery = urlParams.get('q');
+        if (initialQuery) {
+            searchInput.value = initialQuery;
+            performSearch();
+        }
     </script>
-    </main>
 </body>
-</html> 
+</html>
