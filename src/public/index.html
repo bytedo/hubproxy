@@ -7,81 +7,21 @@
     <title>镜像加速 - 极速开发体验</title>
     <link rel="icon" href="/favicon.ico">
     
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 本地静态资源（无外部 CDN，离线可用） -->
+    <link rel="stylesheet" href="/public/app.css">
+    <link rel="stylesheet" href="/public/vendor/fontawesome/css/all.min.css">
+    <meta name="theme-color" content="#0ea5e9">
+    <meta name="color-scheme" content="light dark">
+    <!-- 先于首屏渲染应用主题，避免暗色模式加载闪烁 -->
     <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'system-ui', 'sans-serif'],
-                    },
-                    colors: {
-                        primary: {
-                            50: '#f0f9ff',
-                            100: '#e0f2fe',
-                            400: '#38bdf8',
-                            500: '#0ea5e9', // Sky-500
-                            600: '#0284c7',
-                        },
-                        accent: {
-                            400: '#34d399',
-                            500: '#10b981', // Emerald-500
-                            600: '#059669',
-                        }
-                    },
-                    animation: {
-                        'blob': 'blob 7s infinite',
-                        'fade-in': 'fadeIn 0.5s ease-out forwards',
-                    },
-                    keyframes: {
-                        blob: {
-                            '0%': { transform: 'translate(0px, 0px) scale(1)' },
-                            '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
-                            '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
-                            '100%': { transform: 'translate(0px, 0px) scale(1)' },
-                        },
-                        fadeIn: {
-                            '0%': { opacity: '0', transform: 'translateY(10px)' },
-                            '100%': { opacity: '1', transform: 'translateY(0)' },
-                        }
-                    }
+        (function () {
+            try {
+                if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                    document.documentElement.classList.add('dark');
                 }
-            }
-        }
+            } catch (e) {}
+        })();
     </script>
-    <!-- FontAwesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <style>
-        body { font-family: 'Inter', sans-serif; }
-        .glass {
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.5);
-        }
-        .dark .glass {
-            background: rgba(30, 41, 59, 0.7);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-        .gradient-text {
-            background: linear-gradient(135deg, #0ea5e9 0%, #10b981 100%);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        /* Scrollbar */
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        .dark ::-webkit-scrollbar-thumb { background: #475569; }
-        .dark ::-webkit-scrollbar-thumb:hover { background: #64748b; }
-    </style>
 </head>
 <body class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-200 transition-colors duration-300 min-h-screen flex flex-col selection:bg-primary-500 selection:text-white relative overflow-x-hidden">
 
@@ -115,14 +55,14 @@
                     <a href="/search.html" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-primary-600 hover:bg-slate-100/50 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/50 transition-all">
                         镜像搜索
                     </a>
-                    <button id="themeToggle" class="ml-2 w-10 h-10 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-orange-500 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-yellow-400 transition-all">
-                        <i class="fa-solid fa-moon text-lg"></i>
+                    <button id="themeToggle" aria-label="切换深色模式" title="切换深色模式" class="ml-2 w-10 h-10 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-orange-500 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-yellow-400 transition-all">
+                        <i class="fa-solid fa-moon text-lg" aria-hidden="true"></i>
                     </button>
                 </div>
 
                 <!-- Mobile Menu Button -->
-                <button id="mobileMenuBtn" class="md:hidden w-10 h-10 flex items-center justify-center rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">
-                    <i class="fa-solid fa-bars text-xl"></i>
+                <button id="mobileMenuBtn" aria-label="打开菜单" aria-expanded="false" aria-controls="mobileMenu" class="md:hidden w-10 h-10 flex items-center justify-center rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">
+                    <i class="fa-solid fa-bars text-xl" aria-hidden="true"></i>
                 </button>
             </div>
         </div>
@@ -174,7 +114,7 @@
 
                     <div class="space-y-4">
                         <div class="relative">
-                            <input type="text" id="githubLinkInput" placeholder="在此粘贴 GitHub 链接 (https://...)" 
+                            <input type="text" id="githubLinkInput" aria-label="GitHub 加速链接" placeholder="在此粘贴 GitHub 链接 (https://...)" 
                                 class="w-full pl-12 pr-4 py-4 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all dark:bg-slate-800/50 dark:border-slate-700 dark:text-white dark:placeholder-slate-500">
                             <div class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
                                 <i class="fa-solid fa-link"></i>
@@ -345,7 +285,8 @@ docker pull <span class="text-primary-400">localhost:5000</span>/ghcr.io/user/im
         const mobileBtn = document.getElementById('mobileMenuBtn');
         const mobileMenu = document.getElementById('mobileMenu');
         mobileBtn.addEventListener('click', () => {
-            mobileMenu.classList.toggle('hidden');
+            const isHidden = mobileMenu.classList.toggle('hidden');
+            mobileBtn.setAttribute('aria-expanded', String(!isHidden));
         });
 
         // 主题切换逻辑

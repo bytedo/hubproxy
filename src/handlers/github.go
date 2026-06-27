@@ -129,7 +129,7 @@ func proxyGitHubWithRedirect(c *gin.Context, u string, redirectCount int) {
 			fmt.Printf("关闭响应体失败: %v\n", err)
 		}
 	}()
-	
+
 	// 检查并处理被阻止的内容类型
 	if c.Request.Method == "GET" {
 		if contentType := resp.Header.Get("Content-Type"); blockedContentTypes[strings.ToLower(strings.Split(contentType, ";")[0])] {
@@ -171,9 +171,9 @@ func proxyGitHubWithRedirect(c *gin.Context, u string, redirectCount int) {
 
 		processedBody, processedSize, err := utils.ProcessSmart(resp.Body, isGzipCompressed, realHost)
 		if err != nil {
-			fmt.Printf("智能处理失败，回退到直接代理: %v\n", err)
-			processedBody = resp.Body
-			processedSize = 0
+			fmt.Printf("脚本处理失败: %v\n", err)
+			c.String(http.StatusBadGateway, "Script processing failed: %v", err)
+			return
 		}
 
 		// 智能设置响应头
@@ -227,6 +227,8 @@ func proxyGitHubWithRedirect(c *gin.Context, u string, redirectCount int) {
 		c.Status(resp.StatusCode)
 
 		// 直接流式转发
-		io.Copy(c.Writer, resp.Body)
+		if _, err := io.Copy(c.Writer, resp.Body); err != nil {
+			fmt.Printf("转发响应体失败: %v\n", err)
+		}
 	}
 }

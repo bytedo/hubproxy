@@ -7,79 +7,21 @@
     <title>镜像搜索 - 镜像加速</title>
     <link rel="icon" href="/favicon.ico">
     
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 本地静态资源（无外部 CDN，离线可用） -->
+    <link rel="stylesheet" href="/public/app.css">
+    <link rel="stylesheet" href="/public/vendor/fontawesome/css/all.min.css">
+    <meta name="theme-color" content="#0ea5e9">
+    <meta name="color-scheme" content="light dark">
+    <!-- 先于首屏渲染应用主题，避免暗色模式加载闪烁 -->
     <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'system-ui', 'sans-serif'],
-                    },
-                    colors: {
-                        primary: {
-                            50: '#f0f9ff',
-                            100: '#e0f2fe',
-                            400: '#38bdf8',
-                            500: '#0ea5e9', // Sky-500
-                            600: '#0284c7',
-                        },
-                        accent: {
-                            400: '#34d399',
-                            500: '#10b981', // Emerald-500
-                            600: '#059669',
-                        }
-                    },
-                    animation: {
-                        'fade-in': 'fadeIn 0.5s ease-out forwards',
-                    },
-                    keyframes: {
-                        fadeIn: {
-                            '0%': { opacity: '0', transform: 'translateY(10px)' },
-                            '100%': { opacity: '1', transform: 'translateY(0)' },
-                        }
-                    }
+        (function () {
+            try {
+                if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                    document.documentElement.classList.add('dark');
                 }
-            }
-        }
+            } catch (e) {}
+        })();
     </script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <style>
-        body { font-family: 'Inter', sans-serif; }
-        .glass {
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.5);
-        }
-        .dark .glass {
-            background: rgba(30, 41, 59, 0.7);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-        .gradient-text {
-            background: linear-gradient(135deg, #0ea5e9 0%, #10b981 100%);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        /* Loading Spinner */
-        .spinner {
-            border: 3px solid rgba(0,0,0,0.1);
-            border-left-color: #0ea5e9;
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            animation: spin 1s linear infinite;
-        }
-        .dark .spinner {
-            border: 3px solid rgba(255,255,255,0.1);
-            border-left-color: #38bdf8;
-        }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    </style>
 </head>
 <body class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-200 transition-colors duration-300 min-h-screen flex flex-col relative overflow-x-hidden selection:bg-primary-500 selection:text-white">
 
@@ -106,14 +48,14 @@
                     <a href="/search.html" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-primary-600 hover:bg-slate-100/50 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/50 transition-all bg-slate-100/50 dark:bg-slate-800/50 text-primary-600 dark:text-white font-semibold">
                         镜像搜索
                     </a>
-                    <button id="themeToggle" class="ml-2 w-10 h-10 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-orange-500 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-yellow-400 transition-all">
-                        <i class="fa-solid fa-moon text-lg"></i>
+                    <button id="themeToggle" aria-label="切换深色模式" title="切换深色模式" class="ml-2 w-10 h-10 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-orange-500 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-yellow-400 transition-all">
+                        <i class="fa-solid fa-moon text-lg" aria-hidden="true"></i>
                     </button>
                 </div>
 
                 <!-- Mobile Menu Button -->
-                <button id="mobileMenuBtn" class="md:hidden w-10 h-10 flex items-center justify-center rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">
-                    <i class="fa-solid fa-bars text-xl"></i>
+                <button id="mobileMenuBtn" aria-label="打开菜单" aria-expanded="false" aria-controls="mobileMenu" class="md:hidden w-10 h-10 flex items-center justify-center rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">
+                    <i class="fa-solid fa-bars text-xl" aria-hidden="true"></i>
                 </button>
             </div>
         </div>
@@ -141,7 +83,7 @@
                 <div class="max-w-2xl mx-auto relative group">
                     <div class="absolute -inset-1 bg-gradient-to-r from-primary-400 via-accent-400 to-primary-400 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000 group-hover:duration-200"></div>
                     <div class="relative flex items-center">
-                        <input type="text" id="searchInput" placeholder="搜索镜像 例如: mysql, redis，nginx等" 
+                        <input type="text" id="searchInput" aria-label="搜索 Docker 镜像" placeholder="搜索镜像 例如: mysql, redis，nginx等" 
                             class="w-full pl-6 pr-32 py-4 rounded-xl bg-white border-0 shadow-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all text-lg dark:bg-slate-800 dark:text-white dark:placeholder-slate-500">
                         <button id="searchButton" class="absolute right-2 top-2 bottom-2 px-6 rounded-lg bg-primary-500 hover:bg-primary-600 text-white font-medium transition-colors shadow-lg shadow-primary-500/30">
                             搜索
@@ -244,6 +186,18 @@
         let currentTagPage = 1, totalTagPages = 1;
         let currentRepo = null;
         let currentPageTags = [];
+        let currentResults = [];
+
+        // 转义 HTML，避免把镜像仓库 / 标签等接口数据直接拼进 innerHTML 造成注入
+        function escapeHtml(value) {
+            if (value === null || value === undefined) return '';
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
 
         // UI Helpers
         function showLoading() { loadingOverlay.classList.remove('hidden'); }
@@ -280,7 +234,8 @@
                 
                 totalPages = Math.min(Math.ceil(data.count / 25), 100);
                 updatePagination();
-                renderResults(data.results);
+                currentResults = data.results || [];
+                renderResults(currentResults);
             } catch (e) {
                 showToast(e.message);
                 console.error(e);
@@ -296,18 +251,22 @@
                 return;
             }
 
-            container.innerHTML = results.map(repo => {
-                const name = repo.is_official ? (repo.name || repo.repo_name).replace('library/', '') : (repo.namespace ? `${repo.namespace}/${repo.name || repo.repo_name}` : repo.name || repo.repo_name);
-                
+            container.innerHTML = results.map((repo, i) => {
+                const rawName = repo.is_official
+                    ? (repo.name || repo.repo_name).replace('library/', '')
+                    : (repo.namespace ? `${repo.namespace}/${repo.name || repo.repo_name}` : (repo.name || repo.repo_name));
+                const name = escapeHtml(rawName);
+                const desc = escapeHtml(repo.short_description || '暂无描述');
+
                 return `
-                <div class="glass rounded-xl p-6 shadow-md hover:shadow-xl transition-all hover:-translate-y-1 cursor-pointer border border-slate-100 dark:border-slate-800 group" onclick="viewRepoTags(${JSON.stringify(repo).replace(/"/g, '&quot;')})">
+                <div data-repo-index="${i}" class="glass rounded-xl p-6 shadow-md hover:shadow-xl transition-all hover:-translate-y-1 cursor-pointer border border-slate-100 dark:border-slate-800 group">
                     <div class="flex items-start justify-between mb-4">
                         <div class="font-bold text-lg text-slate-800 dark:text-white truncate pr-2 group-hover:text-primary-500 transition-colors" title="${name}">${name}</div>
                         <div class="flex gap-1 shrink-0">
                             ${repo.is_official ? '<span class="px-2 py-0.5 rounded text-xs font-semibold bg-primary-100 text-primary-700 dark:bg-primary-900/50 dark:text-primary-300">OFFICIAL</span>' : ''}
                         </div>
                     </div>
-                    <p class="text-sm text-slate-500 dark:text-slate-400 line-clamp-2 h-10 mb-4">${repo.short_description || '暂无描述'}</p>
+                    <p class="text-sm text-slate-500 dark:text-slate-400 line-clamp-2 h-10 mb-4">${desc}</p>
                     <div class="flex items-center gap-4 text-xs text-slate-400 font-medium">
                         <span class="flex items-center gap-1"><i class="fa-solid fa-star text-yellow-400"></i> ${formatUtils.formatNumber(repo.star_count)}</span>
                         <span class="flex items-center gap-1"><i class="fa-solid fa-download text-primary-400"></i> ${formatUtils.formatNumber(repo.pull_count)}</span>
@@ -334,17 +293,17 @@
                 document.getElementById('tagListHeader').innerHTML = `
                     <div class="glass rounded-xl p-6 border-l-4 border-primary-500 shadow-lg">
                         <h2 class="text-2xl font-bold mb-2 flex items-center gap-3 text-slate-800 dark:text-white">
-                            ${fullRepoName}
+                            ${escapeHtml(fullRepoName)}
                             ${currentRepo.is_official ? '<i class="fa-solid fa-certificate text-primary-500" title="官方镜像"></i>' : ''}
                         </h2>
                         <div class="flex flex-wrap items-center gap-4 text-sm text-slate-600 dark:text-slate-300 mb-4">
-                            <span class="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">⭐ ${currentRepo.star_count}</span>
-                            <span class="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">⬇️ ${currentRepo.pull_count}</span>
+                            <span class="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">⭐ ${formatUtils.formatNumber(currentRepo.star_count)}</span>
+                            <span class="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">⬇️ ${formatUtils.formatNumber(currentRepo.pull_count)}</span>
                         </div>
                         <div class="bg-slate-900 rounded-lg p-3 flex items-center justify-between group">
-                            <code class="text-green-400 font-mono text-sm break-all">docker pull ${fullRepoName}</code>
-                            <button class="text-slate-400 hover:text-white transition-colors shrink-0 ml-2" onclick="copyText('docker pull ${fullRepoName}')">
-                                <i class="fa-regular fa-copy"></i>
+                            <code class="text-green-400 font-mono text-sm break-all">docker pull ${escapeHtml(fullRepoName)}</code>
+                            <button class="text-slate-400 hover:text-white transition-colors shrink-0 ml-2" data-copy="${escapeHtml('docker pull ' + fullRepoName)}" aria-label="复制 docker pull 命令">
+                                <i class="fa-regular fa-copy" aria-hidden="true"></i>
                             </button>
                         </div>
                     </div>
@@ -373,39 +332,47 @@
             const container = document.getElementById('tagsContainer');
             const repoInfo = currentRepo.is_official ? (currentRepo.name || currentRepo.repo_name).replace('library/', '') : `${currentRepo.namespace}/${currentRepo.name || currentRepo.repo_name}`;
 
-            if (!tags.length) container.innerHTML = '<div class="text-center py-6 text-slate-500">无标签数据</div>';
-            else container.innerHTML = tags.map(tag => `
+            if (!tags.length) {
+                container.innerHTML = '<div class="text-center py-6 text-slate-500">无标签数据</div>';
+                return;
+            }
+            container.innerHTML = tags.map(tag => {
+                const tagName = escapeHtml(tag.name);
+                const pullCmd = escapeHtml(`docker pull ${repoInfo}:${tag.name}`);
+                const arches = (tag.images || []).map(img => `
+                                <span class="text-xs px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                                    ${escapeHtml(img.os)}/${escapeHtml(img.architecture)}
+                                </span>
+                            `).join('');
+                return `
                 <div class="glass p-4 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 border border-slate-100 dark:border-slate-800 hover:border-primary-200 dark:hover:border-primary-800 transition-colors">
                     <div>
                         <div class="flex items-center gap-2 mb-1">
-                            <span class="font-bold text-lg text-slate-800 dark:text-white">${tag.name}</span>
-                            <span class="text-xs text-slate-400">Last updated: ${formatUtils.formatTimeAgo(tag.last_updated)}</span>
+                            <span class="font-bold text-lg text-slate-800 dark:text-white">${tagName}</span>
+                            <span class="text-xs text-slate-400">Last updated: ${escapeHtml(formatUtils.formatTimeAgo(tag.last_updated))}</span>
                         </div>
                         <div class="flex flex-wrap gap-2">
-                            ${(tag.images || []).map(img => `
-                                <span class="text-xs px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
-                                    ${img.os}/${img.architecture}
-                                </span>
-                            `).join('')}
+                            ${arches}
                         </div>
                     </div>
                     <div class="flex items-center gap-3 shrink-0">
                          <div class="text-right hidden md:block">
-                            <div class="text-xs text-slate-400">Size: ${formatUtils.formatSize(tag.full_size)}</div>
+                            <div class="text-xs text-slate-400">Size: ${escapeHtml(formatUtils.formatSize(tag.full_size))}</div>
                          </div>
-                         <button class="w-8 h-8 rounded-lg bg-primary-50 dark:bg-primary-900/30 text-primary-600 flex items-center justify-center hover:bg-primary-100 dark:hover:bg-primary-900/50 transition-colors" onclick="copyText('docker pull ${repoInfo}:${tag.name}')" title="复制 Pull 命令">
-                            <i class="fa-solid fa-copy"></i>
+                         <button class="w-8 h-8 rounded-lg bg-primary-50 dark:bg-primary-900/30 text-primary-600 flex items-center justify-center hover:bg-primary-100 dark:hover:bg-primary-900/50 transition-colors" data-copy="${pullCmd}" aria-label="复制 pull 命令" title="复制 Pull 命令">
+                            <i class="fa-solid fa-copy" aria-hidden="true"></i>
                          </button>
                     </div>
                 </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         // Search Events
         document.getElementById('prevPage').onclick = () => { if(currentPage>1) { currentPage--; performSearch(); }};
         document.getElementById('nextPage').onclick = () => { if(currentPage<totalPages) { currentPage++; performSearch(); }};
         document.getElementById('searchButton').onclick = () => { currentPage=1; performSearch(); };
-        document.getElementById('searchInput').onkeypress = (e) => { if(e.key==='Enter') { currentPage=1; performSearch(); }};
+        document.getElementById('searchInput').onkeydown = (e) => { if(e.key==='Enter') { currentPage=1; performSearch(); }};
 
         // Tag Events
         document.getElementById('tagPrevPage').onclick = () => { if(currentTagPage>1) { currentTagPage--; loadTags(); }};
@@ -421,6 +388,19 @@
 
         // Global Copy
         window.copyText = (txt) => { navigator.clipboard.writeText(txt).then(() => showToast('已复制')); };
+
+        // 事件委托：复制按钮（data-copy）与仓库卡片点击（data-repo-index），
+        // 取代内联 onclick，避免把接口数据拼进 HTML 属性/脚本造成注入。
+        document.addEventListener('click', (e) => {
+            const copyBtn = e.target.closest('[data-copy]');
+            if (copyBtn) copyText(copyBtn.getAttribute('data-copy'));
+        });
+        document.getElementById('searchResults').addEventListener('click', (e) => {
+            const card = e.target.closest('[data-repo-index]');
+            if (!card) return;
+            const repo = currentResults[Number(card.dataset.repoIndex)];
+            if (repo) viewRepoTags(repo);
+        });
         
         // Update Pagination Visibility
         function updatePagination() {
@@ -432,7 +412,10 @@
         // Shared Menu & Theme Logic (FIXED & UNIFIED)
         const mobileBtn = document.getElementById('mobileMenuBtn');
         const mobileMenu = document.getElementById('mobileMenu');
-        mobileBtn.addEventListener('click', () => mobileMenu.classList.toggle('hidden'));
+        mobileBtn.addEventListener('click', () => {
+            const isHidden = mobileMenu.classList.toggle('hidden');
+            mobileBtn.setAttribute('aria-expanded', String(!isHidden));
+        });
 
         const themeToggle = document.getElementById('themeToggle');
         const html = document.documentElement;

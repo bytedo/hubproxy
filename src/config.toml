@@ -1,4 +1,5 @@
 [server]
+# 可通过 CONFIG_PATH 环境变量指定配置文件路径，默认读取当前工作目录下的 config.toml
 host = "0.0.0.0"
 # 监听端口
 port = 5000
@@ -6,6 +7,7 @@ port = 5000
 fileSize = 2147483648
 # HTTP/2 多路复用
 enableH2C = false
+enableFrontend = true
 
 [rateLimit]
 # 每个IP每周期允许的请求数

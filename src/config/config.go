@@ -22,10 +22,11 @@ type RegistryMapping struct {
 // AppConfig 应用配置结构体
 type AppConfig struct {
 	Server struct {
-		Host      string `toml:"host"`
-		Port      int    `toml:"port"`
-		FileSize  int64  `toml:"fileSize"`
-		EnableH2C bool   `toml:"enableH2C"`
+		Host           string `toml:"host"`
+		Port           int    `toml:"port"`
+		FileSize       int64  `toml:"fileSize"`
+		EnableH2C      bool   `toml:"enableH2C"`
+		EnableFrontend bool   `toml:"enableFrontend"`
 	} `toml:"server"`
 
 	RateLimit struct {
@@ -70,15 +71,17 @@ var (
 func DefaultConfig() *AppConfig {
 	return &AppConfig{
 		Server: struct {
-			Host      string `toml:"host"`
-			Port      int    `toml:"port"`
-			FileSize  int64  `toml:"fileSize"`
-			EnableH2C bool   `toml:"enableH2C"`
+			Host           string `toml:"host"`
+			Port           int    `toml:"port"`
+			FileSize       int64  `toml:"fileSize"`
+			EnableH2C      bool   `toml:"enableH2C"`
+			EnableFrontend bool   `toml:"enableFrontend"`
 		}{
-			Host:      "0.0.0.0",
-			Port:      5000,
-			FileSize:  2 * 1024 * 1024 * 1024, // 2GB
-			EnableH2C: false,                  // 默认关闭H2C
+			Host:           "0.0.0.0",
+			Port:           5000,
+			FileSize:       2 * 1024 * 1024 * 1024,
+			EnableH2C:      false,
+			EnableFrontend: true,
 		},
 		RateLimit: struct {
 			RequestLimit int     `toml:"requestLimit"`
@@ -194,16 +197,23 @@ func setConfig(cfg *AppConfig) {
 	configCacheMutex.Unlock()
 }
 
-// LoadConfig 加载配置文件
+func configFilePath() string {
+	if path := strings.TrimSpace(os.Getenv("CONFIG_PATH")); path != "" {
+		return path
+	}
+	return "config.toml"
+}
+
 func LoadConfig() error {
 	cfg := DefaultConfig()
+	path := configFilePath()
 
-	if data, err := os.ReadFile("config.toml"); err == nil {
+	if data, err := os.ReadFile(path); err == nil {
 		if err := toml.Unmarshal(data, cfg); err != nil {
-			return fmt.Errorf("解析配置文件失败: %v", err)
+			return fmt.Errorf("解析配置文件 %s 失败: %v", path, err)
 		}
 	} else {
-		fmt.Println("未找到config.toml，使用默认配置")
+		fmt.Printf("未找到配置文件 %s，使用默认配置\n", path)
 	}
 
 	overrideFromEnv(cfg)
@@ -225,6 +235,11 @@ func overrideFromEnv(cfg *AppConfig) {
 	if val := os.Getenv("ENABLE_H2C"); val != "" {
 		if enable, err := strconv.ParseBool(val); err == nil {
 			cfg.Server.EnableH2C = enable
+		}
+	}
+	if val := os.Getenv("ENABLE_FRONTEND"); val != "" {
+		if enable, err := strconv.ParseBool(val); err == nil {
+			cfg.Server.EnableFrontend = enable
 		}
 	}
 	if val := os.Getenv("MAX_FILE_SIZE"); val != "" {
@@ -249,6 +264,10 @@ func overrideFromEnv(cfg *AppConfig) {
 	}
 	if val := os.Getenv("IP_BLACKLIST"); val != "" {
 		cfg.Security.BlackList = append(cfg.Security.BlackList, strings.Split(val, ",")...)
+	}
+
+	if val, ok := os.LookupEnv("ACCESS_PROXY"); ok {
+		cfg.Access.Proxy = strings.TrimSpace(val)
 	}
 
 	if val := os.Getenv("MAX_IMAGES"); val != "" {

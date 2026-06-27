@@ -7,11 +7,10 @@ Wants=network-online.target
 Type=simple
 User=root
 Group=root
-WorkingDirectory=/opt/hubproxy
-ExecStart=/opt/hubproxy/hubproxy
+Environment=CONFIG_PATH=/etc/hubproxy/config.toml
+ExecStart=/usr/bin/hubproxy
 Restart=always
 RestartSec=5
-Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=hubproxy

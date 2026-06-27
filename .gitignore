@@ -1,5 +1,5 @@
 .idea
 .vscode
 .DS_Store
-hubproxy*
-!hubproxy.service
+/hubproxy*
+*.exe

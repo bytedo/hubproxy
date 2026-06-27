@@ -7,65 +7,21 @@
     <title>离线镜像下载 - 镜像加速</title>
     <link rel="icon" href="/favicon.ico">
     
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 本地静态资源（无外部 CDN，离线可用） -->
+    <link rel="stylesheet" href="/public/app.css">
+    <link rel="stylesheet" href="/public/vendor/fontawesome/css/all.min.css">
+    <meta name="theme-color" content="#0ea5e9">
+    <meta name="color-scheme" content="light dark">
+    <!-- 先于首屏渲染应用主题，避免暗色模式加载闪烁 -->
     <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'system-ui', 'sans-serif'],
-                    },
-                    colors: {
-                        primary: {
-                            50: '#f0f9ff',
-                            100: '#e0f2fe',
-                            400: '#38bdf8',
-                            500: '#0ea5e9', // Sky-500
-                            600: '#0284c7',
-                        },
-                        accent: {
-                            400: '#34d399',
-                            500: '#10b981', // Emerald-500
-                            600: '#059669',
-                        }
-                    },
-                    animation: {
-                        'fade-in': 'fadeIn 0.5s ease-out forwards',
-                    },
-                    keyframes: {
-                        fadeIn: {
-                            '0%': { opacity: '0', transform: 'translateY(10px)' },
-                            '100%': { opacity: '1', transform: 'translateY(0)' },
-                        }
-                    }
+        (function () {
+            try {
+                if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                    document.documentElement.classList.add('dark');
                 }
-            }
-        }
+            } catch (e) {}
+        })();
     </script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <style>
-        body { font-family: 'Inter', sans-serif; }
-        .glass {
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.5);
-        }
-        .dark .glass {
-            background: rgba(30, 41, 59, 0.7);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-        .gradient-text {
-            background: linear-gradient(135deg, #0ea5e9 0%, #10b981 100%);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-    </style>
 </head>
 <body class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-200 transition-colors duration-300 min-h-screen flex flex-col relative overflow-x-hidden selection:bg-primary-500 selection:text-white">
 
@@ -92,14 +48,14 @@
                     <a href="/search.html" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-primary-600 hover:bg-slate-100/50 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/50 transition-all">
                         镜像搜索
                     </a>
-                    <button id="themeToggle" class="ml-2 w-10 h-10 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-orange-500 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-yellow-400 transition-all">
-                        <i class="fa-solid fa-moon text-lg"></i>
+                    <button id="themeToggle" aria-label="切换深色模式" title="切换深色模式" class="ml-2 w-10 h-10 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-orange-500 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-yellow-400 transition-all">
+                        <i class="fa-solid fa-moon text-lg" aria-hidden="true"></i>
                     </button>
                 </div>
 
                 <!-- Mobile Menu Button -->
-                <button id="mobileMenuBtn" class="md:hidden w-10 h-10 flex items-center justify-center rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">
-                    <i class="fa-solid fa-bars text-xl"></i>
+                <button id="mobileMenuBtn" aria-label="打开菜单" aria-expanded="false" aria-controls="mobileMenu" class="md:hidden w-10 h-10 flex items-center justify-center rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">
+                    <i class="fa-solid fa-bars text-xl" aria-hidden="true"></i>
                 </button>
             </div>
         </div>
@@ -159,7 +115,7 @@
                     <div class="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50">
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-6 bg-slate-200 rounded-full relative cursor-pointer transition-colors dark:bg-slate-700 peer" id="gzipToggleWrapper">
-                                <input type="checkbox" id="gzipDetails" class="sr-only peer">
+                                <input type="checkbox" id="gzipDetails" class="sr-only peer" checked>
                                 <div class="w-4 h-4 bg-white rounded-full absolute top-1 left-1 transition-transform peer-checked:translate-x-4"></div>
                             </div>
                             <label for="gzipDetails" class="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer select-none">启用 Gzip 压缩</label>
@@ -234,7 +190,10 @@
         // Shared Logic (Menu & Theme)
         const mobileBtn = document.getElementById('mobileMenuBtn');
         const mobileMenu = document.getElementById('mobileMenu');
-        mobileBtn.addEventListener('click', () => mobileMenu.classList.toggle('hidden'));
+        mobileBtn.addEventListener('click', () => {
+            const isHidden = mobileMenu.classList.toggle('hidden');
+            mobileBtn.setAttribute('aria-expanded', String(!isHidden));
+        });
 
         // Theme Toggle
         const themeToggle = document.getElementById('themeToggle');
@@ -305,10 +264,92 @@
             }
         }
 
+        // 触发浏览器下载（使用后端返回的带令牌 download_url）
+        function triggerDownload(url) {
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = '';
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // 构建 prepare 阶段的下载 URL（镜像名中的 / 需替换为 _）
+        function buildDownloadUrl(imageName, platform = '', useCompressed = true, mode = '') {
+            const encodedImage = imageName.replace(/\//g, '_');
+            const params = new URLSearchParams();
+            if (platform && platform.trim()) {
+                params.append('platform', platform.trim());
+            }
+            params.append('compressed', useCompressed.toString());
+            if (mode) {
+                params.append('mode', mode);
+            }
+            const qs = params.toString();
+            return qs ? `/api/image/download/${encodedImage}?${qs}` : `/api/image/download/${encodedImage}`;
+        }
+
+        function buildInfoUrl(imageName) {
+            const encodedImage = imageName.replace(/\//g, '_');
+            return `/api/image/info/${encodedImage}`;
+        }
+
+        // 下载前预检：确认镜像可访问，避免拿到无效令牌后才失败
+        async function preflightImageDownload(imageName) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
+            try {
+                const response = await fetch(buildInfoUrl(imageName), {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' },
+                    cache: 'no-store',
+                    signal: controller.signal
+                });
+
+                const contentType = response.headers.get('Content-Type') || '';
+                let payload = null;
+                if (contentType.includes('application/json')) {
+                    payload = await response.json();
+                }
+
+                if (!response.ok) {
+                    return { ok: false, error: (payload && payload.error) ? payload.error : '镜像预检失败' };
+                }
+                if (payload && payload.success === false) {
+                    return { ok: false, error: payload.error || '镜像预检失败' };
+                }
+                return { ok: true };
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    return { ok: false, error: '预检超时，请稍后重试' };
+                }
+                return { ok: false, error: '网络错误: ' + error.message };
+            } finally {
+                clearTimeout(timeoutId);
+            }
+        }
+
+        // 并发预检多个镜像，任一失败即返回失败原因
+        async function preflightImages(images) {
+            const uniqueImages = Array.from(new Set(images));
+            const results = await Promise.allSettled(uniqueImages.map(name => preflightImageDownload(name)));
+            for (const result of results) {
+                if (result.status === 'rejected') {
+                    return { ok: false, error: '预检失败，请稍后重试' };
+                }
+                if (!result.value.ok) {
+                    return result.value;
+                }
+            }
+            return { ok: true };
+        }
+
+        // 单个镜像下载：预检 -> prepare 取令牌 download_url -> 触发下载
         document.getElementById('downloadBtn').addEventListener('click', async function() {
             const image = document.getElementById('imageName').value.trim();
             const platform = document.getElementById('platformSelect').value;
-            const gzip = document.getElementById('gzipDetails').checked;
+            const useCompressed = document.getElementById('gzipDetails').checked;
 
             if (!image) {
                 showStatus('statusMessage', '请输入镜像名称', 'error');
@@ -318,92 +359,88 @@
             setButtonLoading('downloadBtn', 'btnText', 'btnLoading', true);
             showStatus('statusMessage', '正在解析镜像信息...', 'success');
 
+            const preflight = await preflightImages([image]);
+            if (!preflight.ok) {
+                showStatus('statusMessage', preflight.error, 'error');
+                setButtonLoading('downloadBtn', 'btnText', 'btnLoading', false);
+                return;
+            }
+
             try {
-                // 构建正确的 API URL
-                // 后端路由: /api/image/download/:image  (镜像名中的 / 需要替换为 _)
-                const encodedImage = image.replace(/\//g, '_');
-                let url = `/api/image/download/${encodeURIComponent(encodedImage)}`;
-                
-                const params = new URLSearchParams();
-                if (platform) params.append('platform', platform);
-                if (gzip) params.append('compressed', 'true');
-                
-                if (params.toString()) {
-                    url += '?' + params.toString();
+                const response = await fetch(buildDownloadUrl(image, platform, useCompressed, 'prepare'), {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' },
+                    cache: 'no-store'
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (!data || !data.download_url) {
+                        showStatus('statusMessage', '下载地址生成失败', 'error');
+                        return;
+                    }
+                    triggerDownload(data.download_url);
+                    const platformText = platform ? ` (${platform})` : '';
+                    showStatus('statusMessage', `开始下载 ${image}${platformText}`, 'success');
+                } else {
+                    const error = await response.json().catch(() => ({}));
+                    showStatus('statusMessage', error.error || '下载失败', 'error');
                 }
-                
-                // 使用 a 标签触发下载
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = '';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                
-                showStatus('statusMessage', '下载任务已开始', 'success');
             } catch (error) {
-                showStatus('statusMessage', '请求失败: ' + error.message, 'error');
+                showStatus('statusMessage', '网络错误: ' + error.message, 'error');
             } finally {
                 setButtonLoading('downloadBtn', 'btnText', 'btnLoading', false);
             }
         });
 
+        // 批量下载：预检 -> prepare 取令牌 download_url -> 触发下载
         document.getElementById('batchDownloadBtn').addEventListener('click', async function() {
             const text = document.getElementById('batchImages').value;
             const platform = document.getElementById('platformSelect').value;
+            const useCompressed = document.getElementById('gzipDetails').checked;
             const images = text.split('\n').map(l => l.trim()).filter(l => l);
-            
+
             if (images.length === 0) {
                 showStatus('batchStatus', '请输入至少一个镜像', 'error');
                 return;
             }
-
             if (images.length > 10) {
                 showStatus('batchStatus', '批量下载最多支持 10 个镜像', 'error');
                 return;
             }
-            
+
             setButtonLoading('batchDownloadBtn', 'batchDownloadText', 'batchDownloadLoading', true);
-            showStatus('batchStatus', `正在打包 ${images.length} 个镜像，大文件可能需要较长时间...`, 'success');
+            showStatus('batchStatus', '正在解析镜像信息...', 'success');
+
+            const preflight = await preflightImages(images);
+            if (!preflight.ok) {
+                showStatus('batchStatus', preflight.error, 'error');
+                setButtonLoading('batchDownloadBtn', 'batchDownloadText', 'batchDownloadLoading', false);
+                return;
+            }
 
             try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 10 * 60 * 1000); // 10分钟超时
-                
-                const response = await fetch('/api/image/batch', {
+                const response = await fetch('/api/image/batch?mode=prepare', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ images, platform }),
-                    signal: controller.signal
+                    body: JSON.stringify({ images, platform, useCompressedLayers: useCompressed })
                 });
-                
-                clearTimeout(timeoutId);
-                
-                if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(err.error || '批量下载失败');
-                }
-                
-                // 使用 blob 下载
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = `batch_${images.length}_images.tar`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                
-                // 延迟释放 URL 避免下载中断
-                setTimeout(() => window.URL.revokeObjectURL(url), 60000);
-                
-                showStatus('batchStatus', '批量下载完成', 'success');
-            } catch (error) {
-                if (error.name === 'AbortError') {
-                    showStatus('batchStatus', '下载超时，请尝试减少镜像数量', 'error');
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (!data || !data.download_url) {
+                        showStatus('batchStatus', '下载地址生成失败', 'error');
+                        return;
+                    }
+                    triggerDownload(data.download_url);
+                    const platformText = platform ? ` (${platform})` : '';
+                    showStatus('batchStatus', `开始下载 ${images.length} 个镜像${platformText}`, 'success');
                 } else {
-                    showStatus('batchStatus', '请求失败: ' + error.message, 'error');
+                    const error = await response.json().catch(() => ({}));
+                    showStatus('batchStatus', error.error || '批量下载失败', 'error');
                 }
+            } catch (error) {
+                showStatus('batchStatus', '网络错误: ' + error.message, 'error');
             } finally {
                 setButtonLoading('batchDownloadBtn', 'batchDownloadText', 'batchDownloadLoading', false);
             }

@@ -40,19 +40,70 @@ docker run -d \
   ghcr.io/sky22333/hubproxy
 ```
 
-### 一键脚本安装
+### 脚本安装
+
+自动识别系统与架构，从 GitHub Releases 下载对应的 `.deb`、`.rpm` 或 `.apk` 安装包：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/sky22333/hubproxy/main/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/sky22333/hubproxy/main/install.sh | sh
 ```
 
-支持单个二进制文件直接启动，无需其他配置，内置默认配置，支持所有功能。
+安装包会自动安装并启动 `hubproxy` 服务。
 
-这个脚本会：
-- 自动检测系统架构（AMD64/ARM64）
-- 从 GitHub Releases 下载最新版本
-- 自动配置系统服务
-- 保留现有配置（升级时）
+<details>
+  <summary>服务管理命令</summary>
+
+#### systemd（Debian / Ubuntu / RHEL / CentOS / Fedora）
+
+```bash
+# 查看状态
+sudo systemctl status hubproxy
+
+# 重启服务
+sudo systemctl restart hubproxy
+
+# 查看实时日志
+sudo journalctl -u hubproxy -f
+
+# 编辑配置文件
+sudo nano /etc/hubproxy/config.toml
+
+# 卸载服务
+sudo apt remove hubproxy
+
+# 连配置一起清理
+sudo apt purge hubproxy
+```
+
+#### OpenRC（Alpine Linux）
+
+```bash
+# 查看状态
+sudo rc-service hubproxy status
+
+# 重启服务
+sudo rc-service hubproxy restart
+
+# 查看实时日志
+sudo tail -f /var/log/hubproxy.log
+
+# 编辑配置文件
+sudo vi /etc/hubproxy/config.toml
+
+# 卸载
+sudo apk del hubproxy
+```
+
+</details>
+
+### 文件路径
+
+- Linux 安装包配置文件：`/etc/hubproxy/config.toml`
+- Linux 安装包二进制文件：`/usr/bin/hubproxy`
+- systemd 服务文件：`/lib/systemd/system/hubproxy.service`
+- Alpine OpenRC 服务文件：`/etc/init.d/hubproxy`
+- Alpine 日志文件：`/var/log/hubproxy.log`
+- Alpine 日志轮转配置：`/etc/logrotate.d/hubproxy`
 
 ## 使用方法
 
@@ -114,6 +165,8 @@ port = 5000
 fileSize = 2147483648
 # HTTP/2 多路复用，提升下载速度
 enableH2C = false
+# 是否启用前端静态页面
+enableFrontend = true
 
 [rateLimit]
 # 每个IP每周期允许的请求数(注意Docker镜像会有多个层，会消耗多个次数)
@@ -200,9 +253,24 @@ defaultTTL = "20m"
 
 </details>
 
-容器内的配置文件位于 `/root/config.toml`
+### 环境变量（可选）
 
-脚本部署配置文件位于 `/opt/hubproxy/config.toml`
+支持通过环境变量覆盖部分配置，优先级高于`config.toml`，以下是默认值：
+
+```
+CONFIG_PATH=config.toml          # 配置文件路径
+SERVER_HOST=0.0.0.0             # 监听地址
+SERVER_PORT=5000                # 监听端口
+ENABLE_H2C=false                # 是否启用 H2C
+ENABLE_FRONTEND=true            # 是否启用前端静态页面
+MAX_FILE_SIZE=2147483648        # GitHub 文件大小限制（字节）
+RATE_LIMIT=500                  # 每周期请求数
+RATE_PERIOD_HOURS=3             # 限流周期（小时）
+IP_WHITELIST=127.0.0.1,192.168.1.0/24   # IP 白名单（逗号分隔）
+IP_BLACKLIST=192.168.100.1,192.168.100.0/24 # IP 黑名单（逗号分隔）
+MAX_IMAGES=10                   # 批量下载镜像数量限制
+ACCESS_PROXY=                   # 代理配置，例如 socks5://127.0.0.1:1080
+```
 
 为了IP限流能够正常运行，反向代理需要传递IP头用来获取访客真实IP，以caddy为例：
 ```
@@ -248,5 +316,6 @@ example.com {
 
 ![1](./.github/demo/demo1.jpg)
 
-## Star 趋势
-[![Star 趋势](https://starchart.cc/sky22333/hubproxy.svg?variant=adaptive)](https://starchart.cc/sky22333/hubproxy)
+## Star History
+
+[![Star History Chart](https://api.star-history.com/chart?repos=sky22333/hubproxy&type=date&legend=top-left)](https://www.star-history.com/?repos=sky22333%2Fhubproxy&type=date&legend=top-left)

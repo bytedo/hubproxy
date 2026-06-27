@@ -2,7 +2,6 @@ package utils
 
 import (
 	"strings"
-	"sync"
 
 	"hubproxy/config"
 )
@@ -17,7 +16,6 @@ const (
 
 // AccessController 统一访问控制器
 type AccessController struct {
-	mu sync.RWMutex
 }
 
 // DockerImageInfo Docker镜像信息
@@ -199,6 +197,13 @@ func (ac *AccessController) checkList(matches, list []string) bool {
 
 		if strings.HasPrefix(fullRepo, item+"/") {
 			return true
+		}
+
+		if strings.HasPrefix(item, "*/") {
+			p := item[2:]
+			if p == repoName || (strings.HasSuffix(p, "*") && strings.HasPrefix(repoName, p[:len(p)-1])) {
+				return true
+			}
 		}
 	}
 	return false
