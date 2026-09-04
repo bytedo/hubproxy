@@ -275,10 +275,10 @@
             document.body.removeChild(link);
         }
 
-        // 构建 prepare 阶段的下载 URL（镜像名中的 / 需替换为 _）
+        // 构建 prepare 阶段的下载 URL（镜像名通过 query 传递，避免路径段下划线歧义）
         function buildDownloadUrl(imageName, platform = '', useCompressed = true, mode = '') {
-            const encodedImage = imageName.replace(/\//g, '_');
             const params = new URLSearchParams();
+            params.append('image', imageName);
             if (platform && platform.trim()) {
                 params.append('platform', platform.trim());
             }
@@ -287,12 +287,11 @@
                 params.append('mode', mode);
             }
             const qs = params.toString();
-            return qs ? `/api/image/download/${encodedImage}?${qs}` : `/api/image/download/${encodedImage}`;
+            return `/api/image/download?${qs}`;
         }
 
         function buildInfoUrl(imageName) {
-            const encodedImage = imageName.replace(/\//g, '_');
-            return `/api/image/info/${encodedImage}`;
+            return `/api/image/info?image=${encodeURIComponent(imageName)}`;
         }
 
         // 下载前预检：确认镜像可访问，避免拿到无效令牌后才失败

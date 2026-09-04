@@ -8,6 +8,7 @@ COPY src/go.mod src/go.sum ./
 RUN apk add --no-cache upx && go mod download
 
 COPY src/ .
+COPY --from=frontend /src/dist ./dist
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -ldflags="-s -w -X main.Version=${VERSION}" -trimpath -o hubproxy . && upx -9 hubproxy
 

@@ -1,5 +1,17 @@
-.idea
-.vscode
+# IDE / OS
+.idea/
+.vscode/
 .DS_Store
+
+# Go build artifacts
 /hubproxy*
 *.exe
+build/
+
+# Docs site (docs/)
+docs/node_modules/
+docs/dist/
+docs/.astro/
+
+# Logs
+*.log

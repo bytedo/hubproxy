@@ -71,7 +71,7 @@ func TestFrontendDisabledRoutesReturnNotFound(t *testing.T) {
 enableFrontend = false
 `)
 
-	for _, path := range []string{"/", "/images.html", "/search.html", "/favicon.ico"} {
+	for _, path := range []string{"/", "/public/app.css", "/images.html", "/search.html", "/favicon.ico"} {
 		w := performRequest(router, http.MethodGet, path, "")
 		if w.Code != http.StatusNotFound {
 			t.Fatalf("%s status = %d, want 404", path, w.Code)
@@ -82,7 +82,7 @@ enableFrontend = false
 func TestSingleImageDownloadPrepareReturnsURL(t *testing.T) {
 	router := newTestRouter(t, "")
 
-	w := performRequest(router, http.MethodGet, "/api/image/download/nginx?mode=prepare", "")
+	w := performRequest(router, http.MethodGet, "/api/image/download?image=nginx&mode=prepare", "")
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200; body=%s", w.Code, w.Body.String())
 	}
@@ -93,7 +93,10 @@ func TestSingleImageDownloadPrepareReturnsURL(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasPrefix(got.DownloadURL, "/api/image/download/nginx?token=") {
+	if !strings.Contains(got.DownloadURL, "image=nginx") || !strings.Contains(got.DownloadURL, "token=") {
+		t.Fatalf("download_url = %q", got.DownloadURL)
+	}
+	if !strings.HasPrefix(got.DownloadURL, "/api/image/download?") {
 		t.Fatalf("download_url = %q", got.DownloadURL)
 	}
 }
@@ -154,10 +157,13 @@ func TestDockerV2PingAndInvalidPath(t *testing.T) {
 	}
 }
 
-func TestSearchRouteRejectsMissingQuery(t *testing.T) {
-	router := newTestRouter(t, "")
+func TestSearchAPIRejectsMissingQuery(t *testing.T) {
+	router := newTestRouter(t, `
+[server]
+enableFrontend = false
+`)
 
-	w := performRequest(router, http.MethodGet, "/search", "")
+	w := performRequest(router, http.MethodGet, "/api/search", "")
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400; body=%s", w.Code, w.Body.String())
 	}
@@ -168,5 +174,38 @@ func TestSearchRouteRejectsMissingQuery(t *testing.T) {
 	}
 	if got["error"] == "" {
 		t.Fatalf("missing error response: %#v", got)
+	}
+}
+
+func TestFrontendServesPagesWhenEnabled(t *testing.T) {
+	router := newTestRouter(t, `
+[server]
+enableFrontend = true
+`)
+
+	w := performRequest(router, http.MethodGet, "/", "")
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Header().Get("Content-Type"), "text/html") {
+		t.Fatalf("content-type = %q, want text/html", w.Header().Get("Content-Type"))
+	}
+	if !strings.Contains(w.Body.String(), `/public/app.css`) {
+		t.Fatalf("index shell missing app.css link: %s", w.Body.String())
+	}
+
+	w = performRequest(router, http.MethodGet, "/public/app.css", "")
+	if w.Code != http.StatusOK {
+		t.Fatalf("app.css status = %d, want 200", w.Code)
+	}
+	if !strings.Contains(w.Header().Get("Content-Type"), "text/css") {
+		t.Fatalf("app.css content-type = %q, want text/css", w.Header().Get("Content-Type"))
+	}
+
+	for _, path := range []string{"/images.html", "/search.html", "/favicon.ico"} {
+		w := performRequest(router, http.MethodGet, path, "")
+		if w.Code != http.StatusOK {
+			t.Fatalf("%s status = %d, want 200", path, w.Code)
+		}
 	}
 }

@@ -17,6 +17,19 @@ const (
 	MaxIPCacheSize  = 10000
 )
 
+// 可信反代
+var trustedProxyCIDRs = []string{
+	"127.0.0.0/8",
+	"10.0.0.0/8",
+	"172.16.0.0/12",
+	"192.168.0.0/16",
+}
+
+// ConfigureTrustedProxies 可信反代
+func ConfigureTrustedProxies(router *gin.Engine) {
+	_ = router.SetTrustedProxies(trustedProxyCIDRs)
+}
+
 // IPRateLimiter IP限流器结构体
 type IPRateLimiter struct {
 	ips              map[string]*rateLimiterEntry
@@ -212,40 +225,14 @@ func (i *IPRateLimiter) GetLimiter(ip string) (*rate.Limiter, bool) {
 func RateLimitMiddleware(limiter *IPRateLimiter) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		path := c.Request.URL.Path
-		if path == "/" || path == "/favicon.ico" || path == "/images.html" || path == "/search.html" ||
-			strings.HasPrefix(path, "/public/") {
+		if path == "/" || path == "/images" || path == "/search" ||
+			path == "/favicon.ico" ||
+			strings.HasPrefix(path, "/assets/") {
 			c.Next()
 			return
 		}
 
-		var ip string
-
-		if forwarded := c.GetHeader("X-Forwarded-For"); forwarded != "" {
-			ips := strings.Split(forwarded, ",")
-			ip = strings.TrimSpace(ips[0])
-		} else if realIP := c.GetHeader("X-Real-IP"); realIP != "" {
-			ip = realIP
-		} else if remoteIP := c.GetHeader("X-Original-Forwarded-For"); remoteIP != "" {
-			ips := strings.Split(remoteIP, ",")
-			ip = strings.TrimSpace(ips[0])
-		} else {
-			ip = c.ClientIP()
-		}
-
-		cleanIP := extractIPFromAddress(ip)
-
-		normalizedIP := normalizeIPForRateLimit(cleanIP)
-		if cleanIP != normalizedIP {
-			fmt.Printf("请求IP: %s (提纯后: %s, 限流段: %s), X-Forwarded-For: %s, X-Real-IP: %s\n",
-				ip, cleanIP, normalizedIP,
-				c.GetHeader("X-Forwarded-For"),
-				c.GetHeader("X-Real-IP"))
-		} else {
-			fmt.Printf("请求IP: %s (提纯后: %s), X-Forwarded-For: %s, X-Real-IP: %s\n",
-				ip, cleanIP,
-				c.GetHeader("X-Forwarded-For"),
-				c.GetHeader("X-Real-IP"))
-		}
+		cleanIP := extractIPFromAddress(c.ClientIP())
 
 		ipLimiter, allowed := limiter.GetLimiter(cleanIP)
 
